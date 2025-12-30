@@ -59,12 +59,13 @@ RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key) {
 
     if(curr_node != NULL && curr_search_key_idx == search_key_len)
         return curr_node;
+
     return NULL;
 }
 
-//TODO: finish this function
 void radix_tree_free(RadixTree* tree) {
-
+    radix_node_free(tree->root);
+    free(tree);
 }
 
 RadixNode* radix_node_create(void) {
