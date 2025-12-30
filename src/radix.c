@@ -69,6 +69,7 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
                 RadixEdge moved_edge = *curr_edge; 
                 // when you assign the new key here, it doesn't break curr_edge because curr_edge still points to the other one
                 moved_edge.key = suffix;
+                // we are pushing a new value from the stack into 
                 radix_edge_vector_push(split_node->edges, moved_edge);
 
                 if (!new_key_ended_here) {
@@ -284,7 +285,7 @@ void radix_tree_tests() {
     radix_tree_insert(tree, "/team", test_func_handler);
     radix_tree_insert(tree, "/te", test_func_handler);
     radix_tree_insert(tree, "/tester", test_func_handler);
-    radix_tree_insert(tree, "/water", test_func_handler);
+    radix_tree_insert(tree, "/water", test_func_handler2);
     radix_tree_insert(tree, "/wat", test_func_handler); 
     radix_tree_insert(tree, "/waste", test_func_handler);
     radix_tree_insert(tree, "/api", test_func_handler);
@@ -294,8 +295,13 @@ void radix_tree_tests() {
     RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
 
     RadixNode* node = radix_tree_get_node(tree, "/slot");
+    RadixNode* waterNode = radix_tree_get_node(tree, "/water");
+
     assert(node != NULL);
     assert(node->func_handler(1,1) == 2);
+
+    assert(waterNode != NULL);
+    assert(waterNode->func_handler(1,1) == 0);
 
     radix_tree_free(tree);
 }
