@@ -64,8 +64,11 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
 
                 RadixEdge new_edge = radix_edge_create(prefix, split_node);
 
+                // this creates a shallow copy of the radix edge object
+                // this shallow object is on the stack
                 RadixEdge moved_edge = *curr_edge; 
-                moved_edge.key = suffix; // "st"
+                // when you assign the new key here, it doesn't break curr_edge because curr_edge still points to the other one
+                moved_edge.key = suffix;
                 radix_edge_vector_push(split_node->edges, moved_edge);
 
                 if (!new_key_ended_here) {
@@ -74,10 +77,10 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
                         radix_edge_create(divergence_key, radix_node_create(func_handler)));
                 } 
 
-                free(curr_edge->key); // Free the old "test" string
-                edges_to_search->items[i] = new_edge; // Struct copy
+                free(curr_edge->key);
+                edges_to_search->items[i] = new_edge;
 
-                return; // Insertion complete
+                return;
             }
         }
         if(match_found == false) break;
@@ -270,8 +273,6 @@ void radix_node_free(RadixNode* node) {
     radix_edge_vector_free(node->edges);
     free(node);
 }
-
-
 
 ////////////
 // TESTS
