@@ -292,6 +292,10 @@ void radix_tree_tests() {
     assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
     RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
 
+    RadixNode* node = radix_tree_get_node(tree, "/slot");
+    assert(node != NULL);
+    assert(node->func_handler(1,1) == 2);
+
     radix_tree_free(tree);
 }
 
