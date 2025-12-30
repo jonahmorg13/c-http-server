@@ -49,7 +49,7 @@ struct RadixNode {
 };
 
 // create
-RadixNode* radix_node_create(void);
+RadixNode* radix_node_create(func_handler_t func_handler);
 // is leaf
 bool radix_node_is_leaf(RadixNode* node);
 // free

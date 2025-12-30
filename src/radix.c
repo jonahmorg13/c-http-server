@@ -27,16 +27,46 @@ RadixTree* radix_tree_create(void) {
         fprintf(stderr, "Error allocating the radix tree");
         exit(-1);
     }
-    tree->root = NULL;
+    tree->root = radix_node_create(NULL);
 
     return tree;
 }
 
-void radix_tree_insert(RadixTree* tree, char* key, func_handler_t func_handler) {
+void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handler) {
+    unsigned int new_key_idx = 0;
+    RadixNode* curr_node = tree->root;
+    size_t new_key_len = strlen(new_key);
+
+    while(curr_node != NULL && !radix_node_is_leaf(curr_node) && new_key_idx < new_key_len) {
+        RadixEdgeVector* edges_to_search = curr_node->edges;
+        size_t edge_vector_size = radix_edge_vector_size(edges_to_search);
+
+        for(int i = 0; i < edge_vector_size; i++) {
+            // we probably need to handle case two in here
+            RadixEdge* curr_edge = radix_edge_vector_at(edges_to_search, i);
+            char* curr_key = curr_edge->key;
+            if(is_prefix(curr_key, &new_key[new_key_idx])) {
+                curr_node = curr_edge->node;
+                new_key_idx += strlen(curr_key);
+                break;
+            }
+        }
+    }
+
+    if(curr_node != NULL && new_key_idx == new_key_len) {
+        fprintf(stderr, "'radix_tree_insert': node already exists");
+        return;
+    }
+
+    if(curr_node != NULL && new_key_idx < new_key_len) {
+        char* new_edge_key = &new_key[new_key_idx];
+        radix_edge_vector_push(curr_node->edges, radix_edge_create(new_edge_key, radix_node_create(func_handler)));
+        return;
+    }
 
 }
 
-RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key) {
+RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
     unsigned int curr_search_key_idx = 0;
     RadixNode* curr_node = tree->root;
     size_t search_key_len = strlen(search_key);
@@ -67,8 +97,9 @@ void radix_tree_free(RadixTree* tree) {
     free(tree);
 }
 
-RadixNode* radix_node_create(void) {
+RadixNode* radix_node_create(func_handler_t func_handler) {
     RadixNode* node = (RadixNode*)malloc(sizeof(RadixNode));
+    node->func_handler = func_handler;
     if(node == NULL) {
         fprintf(stderr, "Error allocating the radix node");
         exit(-1);
@@ -177,18 +208,10 @@ void radix_tree_tests() {
     radix_edge_vector_push(tree->root->edges, radix_edge_create("/test", NULL));
     radix_edge_vector_push(tree->root->edges, radix_edge_create("/slow", NULL));
     radix_tree_insert(tree, "/water", test_func_handler);
+    assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
+    RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
 
-
-    RadixTree* treeTwo = radix_tree_create();
-    radix_tree_insert(tree, "/", test_func_handler);
-    radix_tree_insert(tree, "/students", test_func_handler2);
-    radix_tree_insert(tree, "/users", test_func_handler3);
-    radix_tree_insert(tree, "/study", test_func_handler4);
-
-    RadixNode* nodeOne = radix_tree_get_func_handler(treeTwo, "/study");
-    RadixNode* nodeTwo = radix_tree_get_func_handler(treeTwo, "/");
-    assert(nodeOne != NULL);
-    assert(nodeOne!= NULL);
+    radix_tree_free(tree);
 }
 
 
@@ -200,7 +223,7 @@ void run_radix_edge_vector_tests() {
 
 void test_vector_growth_and_capacity() {
     printf("Running: test_vector_growth_and_capacity\n");
-    RadixNode* node = radix_node_create();
+    RadixNode* node = radix_node_create(NULL);
     
     // Test large number of insertions to trigger multiple reallocations
     for (int i = 0; i < 1000; i++) {
@@ -218,7 +241,7 @@ void test_vector_growth_and_capacity() {
 
 void test_vector_removal_boundaries() {
     printf("Running: test_vector_removal_boundaries\n");
-    RadixNode* node = radix_node_create();
+    RadixNode* node = radix_node_create(NULL);
 
     assert(radix_edge_vector_is_empty(node->edges));
     radix_edge_vector_push(node->edges, radix_edge_create("first", NULL));
@@ -246,7 +269,7 @@ void test_vector_removal_boundaries() {
 
 void test_null_and_empty_keys() {
     printf("Running: test_null_and_empty_keys\n");
-    RadixNode* node = radix_node_create();
+    RadixNode* node = radix_node_create(NULL);
 
     // Testing empty strings as keys
     radix_edge_vector_push(node->edges, radix_edge_create("", NULL));
