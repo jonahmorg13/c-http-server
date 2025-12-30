@@ -37,33 +37,59 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
     RadixNode* curr_node = tree->root;
     size_t new_key_len = strlen(new_key);
 
-    while(curr_node != NULL && !radix_node_is_leaf(curr_node) && new_key_idx < new_key_len) {
+    while(curr_node != NULL && new_key_idx < new_key_len) {
         RadixEdgeVector* edges_to_search = curr_node->edges;
         size_t edge_vector_size = radix_edge_vector_size(edges_to_search);
 
+        bool match_found = false;
         for(int i = 0; i < edge_vector_size; i++) {
-            // we probably need to handle case two in here
             RadixEdge* curr_edge = radix_edge_vector_at(edges_to_search, i);
             char* curr_key = curr_edge->key;
-            if(is_prefix(curr_key, &new_key[new_key_idx])) {
+            size_t curr_key_len = strlen(curr_key);
+
+            size_t common_prefix_amount = has_common_prefix(curr_key, &new_key[new_key_idx]);
+            if(common_prefix_amount == curr_key_len) {
                 curr_node = curr_edge->node;
-                new_key_idx += strlen(curr_key);
+                new_key_idx += curr_key_len;
+                match_found = true;
                 break;
             }
+
+            if(common_prefix_amount > 0 && common_prefix_amount < curr_key_len) {
+                char* prefix = strndup(curr_key, common_prefix_amount);
+                char* suffix = strdup(&curr_key[common_prefix_amount]);
+                
+                int new_key_ended_here = (new_key_idx + common_prefix_amount == new_key_len);
+                RadixNode* split_node = radix_node_create(new_key_ended_here ? func_handler : NULL);
+
+                RadixEdge new_edge = radix_edge_create(prefix, split_node);
+
+                RadixEdge moved_edge = *curr_edge; 
+                moved_edge.key = suffix; // "st"
+                radix_edge_vector_push(split_node->edges, moved_edge);
+
+                if (!new_key_ended_here) {
+                    char* divergence_key = strdup(&new_key[new_key_idx + common_prefix_amount]);
+                    radix_edge_vector_push(split_node->edges, 
+                        radix_edge_create(divergence_key, radix_node_create(func_handler)));
+                } 
+
+                free(curr_edge->key); // Free the old "test" string
+                edges_to_search->items[i] = new_edge; // Struct copy
+
+                return; // Insertion complete
+            }
         }
+        if(match_found == false) break;
     }
 
-    if(curr_node != NULL && new_key_idx == new_key_len) {
+    if(new_key_idx == new_key_len) {
         fprintf(stderr, "'radix_tree_insert': node already exists");
         return;
     }
 
-    if(curr_node != NULL && new_key_idx < new_key_len) {
-        char* new_edge_key = &new_key[new_key_idx];
-        radix_edge_vector_push(curr_node->edges, radix_edge_create(new_edge_key, radix_node_create(func_handler)));
-        return;
-    }
-
+    char* new_edge_key = strdup(&new_key[new_key_idx]);
+    radix_edge_vector_push(curr_node->edges, radix_edge_create(new_edge_key, radix_node_create(func_handler)));
 }
 
 RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
@@ -90,6 +116,53 @@ RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
         return curr_node;
 
     return NULL;
+}
+
+// Helper function for recursion
+void radix_print_recursive(RadixNode* node, int depth) {
+    if (node == NULL || node->edges == NULL) return;
+
+    size_t edge_count = radix_edge_vector_size(node->edges);
+
+    for (size_t i = 0; i < edge_count; i++) {
+        RadixEdge* edge = radix_edge_vector_at(node->edges, i);
+        
+        // 1. Print Indentation (2 spaces per depth level)
+        for (int j = 0; j < depth; j++) {
+            printf("  ");
+        }
+
+        // 2. Print the tree structure and the edge key
+        printf("|-- %s", edge->key);
+
+        // 3. Check if the node this edge points to is a valid key end
+        // (Assuming a non-NULL handler means a key ends here)
+        if (edge->node->func_handler != NULL) {
+            printf("  [KEY]"); 
+        }
+        
+        printf("\n");
+
+        // 4. Recurse down
+        radix_print_recursive(edge->node, depth + 1);
+    }
+}
+
+// Main print function
+void radix_tree_print(RadixTree* tree) {
+    if (tree == NULL || tree->root == NULL) {
+        printf("(Empty Tree)\n");
+        return;
+    }
+
+    printf("ROOT");
+    // Check if the root itself handles an empty string key (rare but possible)
+    if (tree->root->func_handler != NULL) {
+        printf(" [KEY]");
+    }
+    printf("\n");
+
+    radix_print_recursive(tree->root, 0);
 }
 
 void radix_tree_free(RadixTree* tree) {
@@ -190,6 +263,7 @@ void radix_node_free(RadixNode* node) {
     if(node == NULL) return;
 
     for (size_t i = 0; i < node->edges->size; i++) {
+        free(node->edges->items[i].key);
         radix_node_free(node->edges->items[i].node); 
     }
 
@@ -203,11 +277,18 @@ void radix_node_free(RadixNode* node) {
 // TESTS
 ////////////
 void radix_tree_tests() {
-    //TODO: write the test cases from wikipedia
     RadixTree* tree = radix_tree_create();
-    radix_edge_vector_push(tree->root->edges, radix_edge_create("/test", NULL));
-    radix_edge_vector_push(tree->root->edges, radix_edge_create("/slow", NULL));
+    radix_tree_insert(tree, "/slower", test_func_handler); 
+    radix_tree_insert(tree, "/slot", test_func_handler);
+    radix_tree_insert(tree, "/team", test_func_handler);
+    radix_tree_insert(tree, "/te", test_func_handler);
+    radix_tree_insert(tree, "/tester", test_func_handler);
     radix_tree_insert(tree, "/water", test_func_handler);
+    radix_tree_insert(tree, "/wat", test_func_handler); 
+    radix_tree_insert(tree, "/waste", test_func_handler);
+    radix_tree_insert(tree, "/api", test_func_handler);
+    radix_tree_insert(tree, "/slow", test_func_handler);
+    radix_tree_print(tree);
     assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
     RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
 
@@ -227,9 +308,10 @@ void test_vector_growth_and_capacity() {
     
     // Test large number of insertions to trigger multiple reallocations
     for (int i = 0; i < 1000; i++) {
-        char key[20];
-        sprintf(key, "key_%d", i);
-        radix_edge_vector_push(node->edges, radix_edge_create(key, NULL));
+        char buffer[20];
+        sprintf(buffer, "key_%d", i);
+        char* heap_key = strdup(buffer);
+        radix_edge_vector_push(node->edges, radix_edge_create(heap_key, NULL));
     }
     
     assert(radix_edge_vector_size(node->edges) == 1000);
@@ -271,8 +353,11 @@ void test_null_and_empty_keys() {
     printf("Running: test_null_and_empty_keys\n");
     RadixNode* node = radix_node_create(NULL);
 
+    char* heap_key = (char*)malloc(sizeof(char));
+    heap_key[0] = '\0';
+
     // Testing empty strings as keys
-    radix_edge_vector_push(node->edges, radix_edge_create("", NULL));
+    radix_edge_vector_push(node->edges, radix_edge_create(heap_key, NULL));
     assert(radix_edge_vector_size(node->edges) == 1);
     assert(strlen(radix_edge_vector_at(node->edges, 0)->key) == 0);
     assert(!radix_edge_vector_is_empty(node->edges));

@@ -5,6 +5,7 @@
 
 int main(int argc, char* argv[]) {
     run_prefix_tests();
+    run_common_prefix_tests();
     run_radix_edge_vector_tests();
     radix_tree_tests();
 

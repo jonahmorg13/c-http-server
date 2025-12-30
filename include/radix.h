@@ -37,6 +37,10 @@ RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key);
 // free
 void radix_tree_free(RadixTree* tree);
 
+// Helper function for recursion
+void radix_print_recursive(RadixNode* node, int depth);
+void radix_tree_print(RadixTree* tree);
+
 ///////////////////////
 // Radix Node 
 ///////////////////////
