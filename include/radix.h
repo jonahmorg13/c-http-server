@@ -32,7 +32,7 @@ RadixTree* radix_tree_create(void);
 // insert
 void radix_tree_insert(RadixTree* tree, char* key, func_handler_t func_handler);
 // get func handler
-RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key);
+RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key);
 
 // free
 void radix_tree_free(RadixTree* tree);

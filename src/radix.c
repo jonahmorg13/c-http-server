@@ -35,6 +35,7 @@ RadixTree* radix_tree_create(void) {
 void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handler) {
     unsigned int new_key_idx = 0;
     RadixNode* curr_node = tree->root;
+    assert(tree->root != NULL);
     size_t new_key_len = strlen(new_key);
 
     while(curr_node != NULL && new_key_idx < new_key_len) {
@@ -290,7 +291,7 @@ void radix_tree_tests() {
     radix_tree_insert(tree, "/waste", test_func_handler);
     radix_tree_insert(tree, "/api", test_func_handler);
     radix_tree_insert(tree, "/slow", test_func_handler);
-    radix_tree_print(tree);
+    //radix_tree_print(tree);
     assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
     RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
 
