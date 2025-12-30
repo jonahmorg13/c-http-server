@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 #include "../include/radix.h"
 #include "../include/utils.h"
@@ -47,8 +48,6 @@ RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key) {
         for(int i = 0; i < edge_vector_size; i++) {
             RadixEdge* curr_edge = radix_edge_vector_at(edges_to_search, i);
             char* curr_key = curr_edge->key;
-            // if the search key fits the current key, set the current node to it
-            // if the search key doesn't fit the current key
             if(is_prefix(curr_key, &search_key[curr_search_key_idx])) {
                 curr_node = curr_edge->node;
                 curr_search_key_idx += strlen(curr_key);
@@ -165,4 +164,96 @@ void radix_node_free(RadixNode* node) {
 
     radix_edge_vector_free(node->edges);
     free(node);
+}
+
+
+
+////////////
+// TESTS
+////////////
+void radix_tree_tests() {
+    //TODO: write the test cases from wikipedia
+    RadixTree* tree = radix_tree_create();
+    radix_edge_vector_push(tree->root->edges, radix_edge_create("/test", NULL));
+    radix_edge_vector_push(tree->root->edges, radix_edge_create("/slow", NULL));
+    radix_tree_insert(tree, "/water", test_func_handler);
+
+
+    RadixTree* treeTwo = radix_tree_create();
+    radix_tree_insert(tree, "/", test_func_handler);
+    radix_tree_insert(tree, "/students", test_func_handler2);
+    radix_tree_insert(tree, "/users", test_func_handler3);
+    radix_tree_insert(tree, "/study", test_func_handler4);
+
+    RadixNode* nodeOne = radix_tree_get_func_handler(treeTwo, "/study");
+    RadixNode* nodeTwo = radix_tree_get_func_handler(treeTwo, "/");
+    assert(nodeOne != NULL);
+    assert(nodeOne!= NULL);
+}
+
+
+void run_radix_edge_vector_tests() {
+    test_vector_growth_and_capacity();
+    test_vector_removal_boundaries();
+    test_null_and_empty_keys();
+}
+
+void test_vector_growth_and_capacity() {
+    printf("Running: test_vector_growth_and_capacity\n");
+    RadixNode* node = radix_node_create();
+    
+    // Test large number of insertions to trigger multiple reallocations
+    for (int i = 0; i < 1000; i++) {
+        char key[20];
+        sprintf(key, "key_%d", i);
+        radix_edge_vector_push(node->edges, radix_edge_create(key, NULL));
+    }
+    
+    assert(radix_edge_vector_size(node->edges) == 1000);
+    assert(strcmp(radix_edge_vector_at(node->edges, 999)->key, "key_999") == 0);
+    
+    radix_node_free(node);
+    printf("PASSED: test_vector_growth_and_capacity\n");
+}
+
+void test_vector_removal_boundaries() {
+    printf("Running: test_vector_removal_boundaries\n");
+    RadixNode* node = radix_node_create();
+
+    assert(radix_edge_vector_is_empty(node->edges));
+    radix_edge_vector_push(node->edges, radix_edge_create("first", NULL));
+    assert(!radix_edge_vector_is_empty(node->edges));
+    radix_edge_vector_push(node->edges, radix_edge_create("middle", NULL));
+    radix_edge_vector_push(node->edges, radix_edge_create("last", NULL));
+
+    // Remove from the middle (tests shifting logic)
+    radix_edge_vector_remove(node->edges, 1); 
+    assert(radix_edge_vector_size(node->edges) == 2);
+    assert(strcmp(radix_edge_vector_at(node->edges, 1)->key, "last") == 0);
+
+    // Remove the new last
+    radix_edge_vector_remove(node->edges, 1);
+    assert(radix_edge_vector_size(node->edges) == 1);
+    assert(strcmp(radix_edge_vector_at(node->edges, 0)->key, "first") == 0);
+
+    // Remove the final element (empty state)
+    radix_edge_vector_remove(node->edges, 0);
+    assert(radix_edge_vector_size(node->edges) == 0);
+
+    radix_node_free(node);
+    printf("PASSED: test_vector_removal_boundaries\n");
+}
+
+void test_null_and_empty_keys() {
+    printf("Running: test_null_and_empty_keys\n");
+    RadixNode* node = radix_node_create();
+
+    // Testing empty strings as keys
+    radix_edge_vector_push(node->edges, radix_edge_create("", NULL));
+    assert(radix_edge_vector_size(node->edges) == 1);
+    assert(strlen(radix_edge_vector_at(node->edges, 0)->key) == 0);
+    assert(!radix_edge_vector_is_empty(node->edges));
+
+    radix_node_free(node);
+    printf("PASSED: test_null_and_empty_keys\n");
 }

@@ -87,3 +87,14 @@ struct RadixEdge {
 };
 
 RadixEdge radix_edge_create(char* key, RadixNode* node_ptr);
+
+
+////////////
+// TESTS
+////////////
+void radix_tree_tests();
+void run_radix_edge_vector_tests();
+void test_vector_growth_and_capacity();
+void test_vector_removal_boundaries();
+void test_null_and_empty_keys();
+void test_complex_data_payloads();
