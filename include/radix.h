@@ -2,11 +2,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 typedef struct RadixEdge RadixEdge;
 typedef struct RadixNode RadixNode;
 typedef struct RadixEdgeVector RadixEdgeVector ;
 typedef struct RadixTree RadixTree;
+
+typedef int(*func_handler_t)(int, int);
+
+extern int test_func_handler(int a, int b);
+extern int test_func_handler2(int a, int b);
+extern int test_func_handler3(int a, int b);
+extern int test_func_handler4(int a, int b);
+
+
 
 //////////////////////////////////
 // Radix Tree
@@ -14,18 +24,25 @@ typedef struct RadixTree RadixTree;
 // used for endpoint mapping on my http server
 ////////////////////////////////////////
 struct RadixTree {
-    RadixNode* root;
+    struct RadixNode* root;
 };
 
 // create
 RadixTree* radix_tree_create(void);
+// insert
+void radix_tree_insert(RadixTree* tree, char* key, func_handler_t func_handler);
+// get func handler
+RadixNode* radix_tree_get_func_handler(RadixTree* tree, char* search_key);
 
+// free
+void radix_tree_free(RadixTree* tree);
 
 ///////////////////////
 // Radix Node 
 ///////////////////////
 struct RadixNode {
     //function goes here
+    func_handler_t func_handler;
     
     //vector of radixedges
     RadixEdgeVector* edges;
@@ -33,6 +50,8 @@ struct RadixNode {
 
 // create
 RadixNode* radix_node_create(void);
+// is leaf
+bool radix_node_is_leaf(RadixNode* node);
 // free
 void radix_node_free(RadixNode* node);
 
