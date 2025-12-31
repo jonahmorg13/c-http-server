@@ -88,7 +88,11 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
         if(match_found == false) break;
     }
 
-    if(new_key_idx == new_key_len) {
+    if(new_key_idx == new_key_len && curr_node->func_handler == NULL) {
+        curr_node->func_handler = func_handler;
+        return;
+    }
+    else if (new_key_idx == new_key_len && curr_node->func_handler != NULL) {
         fprintf(stderr, "'radix_tree_insert': node already exists");
         return;
     }
