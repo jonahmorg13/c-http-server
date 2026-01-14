@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <signal.h>
 
 #include "radix.h"
 #include "utils.h"
@@ -33,7 +34,7 @@ int index_handler(HttpRequest* req, HttpResponse* res) {
 
     char *response = 
     "HTTP/1.1 200 OK\r\n"
-    "Server: MyCustomCServer/1.0\r\n"
+    "Server: jonahsServer/1.0\r\n"
     "Content-Type: text/html; charset=UTF-8\r\n"
     "Content-Length: 159\r\n"
     "Connection: close\r\n"
@@ -42,8 +43,8 @@ int index_handler(HttpRequest* req, HttpResponse* res) {
     "<html>\n"
     "<head><title>My C Server</title></head>\n"
     "<body>\n"
-    "    <h1>Hello from C!</h1>\n"
-    "    <p>This page was served via a socket.</p>\n"
+    "    <h1>Hello Pimps & Scholars</h1>\n"
+    "    <p>You thought I was feeling you?</p>"
     "</body>\n"
     "</html>\n";
 
@@ -53,6 +54,8 @@ int index_handler(HttpRequest* req, HttpResponse* res) {
 }
 
 int main(int argc, char* argv[]) {
+    signal(SIGPIPE, SIG_IGN);
+
     // ALWAYS run the test before running the server!!!!
     run_tests();
     show_sizes();

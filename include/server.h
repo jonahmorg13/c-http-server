@@ -16,6 +16,7 @@ typedef struct HttpHeader {
     char* host;
     char* content_type;
     char* accept;
+    char* connection;
     size_t content_length;
 } HttpHeader;
 

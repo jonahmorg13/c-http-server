@@ -3,10 +3,13 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
+#include <unistd.h>
+
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <stdint.h>
 
 #include "server.h"
 #include "radix.h"
@@ -14,7 +17,7 @@
 char* not_found_response = 
     "HTTP/1.1 404 Not Found\r\n"       
     "Content-Type: text/plain\r\n"     
-    "Content-Length: 18\r\n"           
+    "Content-Length: 14\r\n"           
     "Connection: close\r\n"            
     "\r\n"                             
     "404 Not Found\n";                 
@@ -101,141 +104,142 @@ void http_server_delete(HttpServer* server) {
 
 void handle_connection(HttpServer* server, int sockfd)
 {
-    while(1) {
-        size_t buffer_size = 16;
-        char buffer[buffer_size];
+    // only wait for 500ms on this connection
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 500000;
 
-        char header_buf[4096];
-        char body_buf[4096];
+    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("Error setting timeout");
+    }
 
-        HttpRequest* req = http_request_create(); 
-        HttpResponse* res = http_response_create();
+    size_t buffer_size = 16;
+    char buffer[buffer_size];
 
-        int recv_length = recv(sockfd, buffer, buffer_size, 0);
-        int search_idx = 0;
-        char search[] = {'\r', '\n', '\r', '\n'};
-        int offset = 0;
-        int end_offset = 0;
-        bool header_buffer_fill_finished = false;
-        while(recv_length > 0) {
-            for(int i = 0; i < recv_length; i++) {
-                if(buffer[i] != search[search_idx]) {
-                    search_idx = 0;
-                } 
-                else {
-                    search_idx++;
-                    if(search_idx >= 4) {
-                        end_offset = i + 1;
-                        strncpy(header_buf + offset, buffer, end_offset);
-                        header_buf[offset + end_offset] = '\0';
-                        header_buffer_fill_finished = true;
-                        break;
-                    }
+    char header_buf[4096];
+
+    HttpRequest* req = http_request_create(); 
+    HttpResponse* res = http_response_create();
+
+    int recv_length = recv(sockfd, buffer, buffer_size, 0);
+    int search_idx = 0;
+    char search[] = {'\r', '\n', '\r', '\n'};
+    int offset = 0;
+    int end_offset = 0;
+    bool header_buffer_fill_finished = false;
+    while(recv_length > 0) {
+        for(int i = 0; i < recv_length; i++) {
+            if(buffer[i] != search[search_idx]) {
+                search_idx = 0;
+            } 
+            else {
+                search_idx++;
+                if(search_idx >= 4) {
+                    end_offset = i + 1;
+                    strncpy(header_buf + offset, buffer, end_offset);
+                    header_buf[offset + end_offset] = '\0';
+                    header_buffer_fill_finished = true;
+                    break;
                 }
             }
-            if(header_buffer_fill_finished) break;
-            strncpy(header_buf + offset, buffer, recv_length);
-            offset += recv_length;
-            recv_length = recv(sockfd, buffer, buffer_size, 0);
         }
+        if(header_buffer_fill_finished) break;
+        strncpy(header_buf + offset, buffer, recv_length);
+        offset += recv_length;
+        recv_length = recv(sockfd, buffer, buffer_size, 0);
+    }
+
+    // printf("HEADER: %s\n", header_buf);
+    // printf("END HEADER\n");
+
+    parse_http_header(req->header, header_buf, strlen);
+    printf("Method: %s\n", req->header->method);
+    printf("Path: %s\n", req->header->path);
+    printf("Version: %s\n", req->header->version);
+    printf("Connection: %s\n", req->header->connection);
+
+    size_t amount_to_read_left = req->header->content_length;
+    req->data = (uint8_t*)malloc(sizeof(uint8_t) * amount_to_read_left);
+
+    if(amount_to_read_left > 0) {
+        // ok now that we're parsing the http header, lets read it's body
         int body_offset = 0;
         if(end_offset != recv_length) {
             int length = buffer_size - end_offset;
-            strncpy(body_buf, buffer + end_offset, length);
+            strncpy(req->data, buffer + end_offset, length);
             body_offset = length;
+            amount_to_read_left -= length;
         }
         recv_length = recv(sockfd, buffer, buffer_size, 0);
-        while(recv_length > 0) {
-            strncpy(body_buf + body_offset, buffer, recv_length);
-            body_offset += recv_length;
+        if(amount_to_read_left > 0) {
+            while(recv_length > 0) {
+                strncpy(req->data + body_offset, buffer, recv_length);
+                body_offset += recv_length;
+                amount_to_read_left -= recv_length;
 
-            if(recv_length < buffer_size) break;
+                if(amount_to_read_left <= 0) break;
 
-            recv_length = recv(sockfd, buffer, buffer_size, 0);
-        }
-
-        printf("HEADER: %s\n", header_buf);
-        printf("END HEADER\n");
-
-        printf("BODY: %s\n", body_buf);
-        printf("END BODY\n");
-
-        parse_http_header(req->header, header_buf, strlen);
-        printf("method: %s\n", req->header->method);
-        printf("path: %s\n", req->header->path);
-        printf("version: %s\n", req->header->version);
-
-        if(req->header->content_length > 0) {
-            printf("receiving...\n");
-            recv_length = recv(sockfd, buffer, buffer_size, 0);
-            if(recv_length <= 0){
-                fprintf(stderr, "Error receiving the header");
-                break;
-            }
-            parse_http_data(req->data, buffer, recv_length);
-        }
-
-        func_handler_t func_handler = http_server_get_function_handler(server, req->header->path);
-        if(func_handler == NULL) {
-            printf("%s", "sending back error resposne\n");
-            res->body = strdup(not_found_response);
-            res->length = strlen(res->body);
-            if(send(sockfd, res->body, res->length, 0) == -1) {
-                fprintf(stderr, "Error sending our resposne\n");
+                recv_length = recv(sockfd, buffer, buffer_size, 0);
             }
         }
-        else {
-            printf("%s", "running our function handler\n");
-            func_handler(req, res);
-            if(send(sockfd, res->body, res->length, 0) == -1) {
-                fprintf(stderr, "Error sending our response\n");
-            }
-        }
-        http_request_delete(req);
-        http_response_delete(res);
+
+        printf("Body: %s\n", req->data);
+        printf("End Body");
     }
+
+    //we've got to handle keep-alive somehow in the response writer
+    func_handler_t func_handler = http_server_get_function_handler(server, req->header->path);
+
+    if(func_handler == NULL) {
+        printf("%s", "sending back error resposne\n");
+        res->body = strdup(not_found_response);
+        res->length = strlen(res->body);
+        if(send(sockfd, res->body, res->length, 0) == -1) {
+            fprintf(stderr, "Error sending our resposne\n");
+        }
+    }
+    else {
+        printf("%s", "running our function handler\n");
+        func_handler(req, res);
+        if(send(sockfd, res->body, res->length, 0) == -1) {
+            fprintf(stderr, "Error sending our response\n");
+        }
+    }
+
+    http_request_delete(req);
+    http_response_delete(res);
+
     close(sockfd);
 }
 
 void parse_http_header(HttpHeader* header, char* buffer, size_t length) {
-    char curr_line[1028];
-
-    int idx = 0;
-    while(idx < length && buffer[idx] != ' ') idx++;
-
-    header->method = (char*)malloc(sizeof(char) * idx + 1);
-    if(header->method) {
-        strncpy(header->method, buffer, idx);
-        header->method[idx] = '\0';
+    char method[16], path[1024], version[16];
+    if(sscanf(buffer, "%15s %1023s %15s", method, path, version) == 3) {
+        header->method = strdup(method);
+        header->path = strdup(path);
+        header->version = strdup(version);
     }
 
-    buffer += idx + 1;
-    length -= idx + 1;
+    char* content_length = strstr(buffer, "Content-Length:");
+    if(content_length == NULL)
+        header->content_length = 0;
+    else 
+        header->content_length = atoi(content_length+15);
 
-
-    idx = 0;
-    while(idx < length && buffer[idx] != ' ') idx++;
-
-    header->path = (char*)malloc(sizeof(char) * idx + 1);
-    if(header->path) {
-        strncpy(header->path, buffer, idx);
-        header->path[idx] = '\0';
+        
+    char* connection = strstr(buffer, "Connection:");
+    if(connection == NULL) {
+        header->connection = strdup("close");
     }
-
-    buffer += idx + 1;
-    length -= idx + 1;
-
-    idx = 0;
-    while(idx < length && buffer[idx] != '\n') idx++;
-
-    header->version = (char*)malloc(sizeof(char) * idx + 1);
-    if(header->version) {
-        strncpy(header->version, buffer, idx);
-        header->version[idx] = '\0';
+    else {
+        connection = connection + 12;
+        if(strncasecmp(connection, "keep-alive", 10) == 0) {
+            header->connection = strdup("keep-alive");
+        }
+        else {
+            header->connection = strdup("close");
+        }
     }
-
-    //handle the other headers later??
-    header->content_length = 0;
 
     return;
 }
