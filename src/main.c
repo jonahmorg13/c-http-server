@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
     HttpServer* server = http_server_create(60223);
 
     http_server_map_endpoint(server, "/", index_handler);
+    http_server_map_static_files_in_dir(server, "public", "/");
     http_server_print_endpoints(server);
 
     http_server_run(server);

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include <sys/time.h>
 
@@ -82,6 +83,65 @@ void http_server_run(HttpServer* server) {
 
 void http_server_map_endpoint(HttpServer* server, char* endpoint, func_handler_t func_handler) {
     radix_tree_insert(server->tree, endpoint, func_handler);
+}
+
+int static_file_func_handler(HttpRequest* req, HttpResponse* res) {
+    char file_path[512]; 
+
+    // very good function!
+    // be careful with strdup so we dont have memory leaks!
+    snprintf(file_path, sizeof(file_path), "./public%s", req->header->path);
+
+    FILE* file = fopen(file_path, "rb");
+    if(file == NULL) {
+        res->body = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        res->length = strlen(res->body);
+        return -1;
+    }
+
+    // how do all of these functions work?
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    rewind(file);
+
+    char header[256];
+    int header_len = snprintf(header, sizeof(header),
+        "HTTP/1.1 200 OK\r\n"
+        "Server: jonahsServer/1.0\r\n"
+        "Content-Type: text/html\r\n" //todo: make this based on the file extension
+        "Content-Length: %ld\r\n"
+        "Cache-Control: max-age=60\r\n"
+        "Connection: close\r\n"
+        "\r\n", file_size);
+
+    res->length = header_len + file_size;
+    res->body = malloc(res->length + 1); 
+
+    memcpy(res->body, header, header_len);
+    fread(res->body + header_len, 1, file_size, file);
+    
+    res->body[res->length] = '\0';
+
+    fclose(file);
+    return 0;
+}
+
+void http_server_map_static_files_in_dir(HttpServer* server, char* dir, char* prefix_endpoint) {
+    DIR* dr = opendir(dir);
+    if(dr == NULL) {
+        perror("Could not open directory");
+    }
+
+    struct dirent *en;
+
+    while((en = readdir(dr)) != NULL) {
+        if(en->d_name[0] == '.') continue;
+        char* full_endpoint_name = strcat(strdup(prefix_endpoint), strdup(en->d_name));
+
+        printf("%s\n", full_endpoint_name);
+        http_server_map_endpoint(server, full_endpoint_name, static_file_func_handler);
+    }
+    closedir(dr);
 }
 
 func_handler_t http_server_get_function_handler(HttpServer* server, char* endpoint) {
@@ -287,3 +347,4 @@ void http_response_delete(HttpResponse* res) {
     free(res->body);
     free(res);
 }
+

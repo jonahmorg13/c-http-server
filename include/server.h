@@ -34,6 +34,8 @@ typedef struct HttpResponse {
 HttpServer* http_server_create(uint16_t port);
 void http_server_run(HttpServer* server);
 void http_server_map_endpoint(HttpServer* server, char* endpoint, func_handler_t func_handler);
+void http_server_map_static_files_in_dir(HttpServer* server, char* dir, char* prefix_endpoint);
+
 func_handler_t http_server_get_function_handler(HttpServer* server, char* endpoint);
 void http_server_print_endpoints(HttpServer* server);
 void http_server_delete(HttpServer* server);
