@@ -1,3 +1,5 @@
+#pragma once
+
 #include "radix.h"
 #include <sys/types.h>
 #include <stdint.h>
@@ -22,8 +24,9 @@ typedef struct HttpRequest {
     uint8_t* data;
 } HttpRequest;
 
-typedef struct HttpResposne {
-    int test;
+typedef struct HttpResponse {
+    char* body;
+    size_t length;
 } HttpResponse;
 
 
@@ -36,8 +39,11 @@ void http_server_delete(HttpServer* server);
 
 void handle_connection(HttpServer* server, int sockfd);
 
-void parse_http_header(HttpHeader* header, char* buffer, size_t recv_length);
-void parse_http_data(uint8_t* data, char* buffer, size_t recv_length);
+void parse_http_header(HttpHeader* header, char* buffer, size_t length);
+void parse_http_data(uint8_t* data, char* buffer, size_t length);
 
 HttpRequest* http_request_create(void);
 void http_request_delete(HttpRequest* req);
+
+HttpResponse* http_response_create(void);
+void http_response_delete(HttpResponse* res);

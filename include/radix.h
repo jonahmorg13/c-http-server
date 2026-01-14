@@ -4,17 +4,20 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+typedef struct HttpRequest HttpRequest;
+typedef struct HttpResponse HttpResponse;
+
 typedef struct RadixEdge RadixEdge;
 typedef struct RadixNode RadixNode;
 typedef struct RadixEdgeVector RadixEdgeVector ;
 typedef struct RadixTree RadixTree;
 
-typedef int(*func_handler_t)(int, int);
+typedef int(*func_handler_t)(HttpRequest* req, HttpResponse* res);
 
-extern int test_func_handler(int a, int b);
-extern int test_func_handler2(int a, int b);
-extern int test_func_handler3(int a, int b);
-extern int test_func_handler4(int a, int b);
+extern int test_func_handler(HttpRequest* a, HttpResponse* b);
+extern int test_func_handler2(HttpRequest* a, HttpResponse* b);
+extern int test_func_handler3(HttpRequest* a, HttpResponse* b);
+extern int test_func_handler4(HttpRequest* a, HttpResponse* b);
 
 
 

@@ -1,5 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 
 #include "radix.h"
 #include "utils.h"
@@ -21,9 +23,33 @@ void show_sizes() {
     printf("sizeof [RadixEdge]: %lu\n", sizeof(RadixEdge));
 }
 
-int print_function_handler(int a, int b) {
-    printf("[Server] Printing [%d] and [%d]\n", a, b);
-    return a + b;
+int print_function_handler(HttpRequest* a, HttpResponse* b) {
+    printf("[Server] Printing [%d] and [%d]\n", (int)(intptr_t)a, (int)(intptr_t)b);
+    return (int)(intptr_t)a + (int)(intptr_t)b;
+}
+
+int index_handler(HttpRequest* req, HttpResponse* res) {
+    printf("we have hit our index function handler!\n");
+
+    char *response = 
+    "HTTP/1.1 200 OK\r\n"
+    "Server: MyCustomCServer/1.0\r\n"
+    "Content-Type: text/html; charset=UTF-8\r\n"
+    "Content-Length: 159\r\n"
+    "Connection: close\r\n"
+    "\r\n"
+    "<!DOCTYPE html>\n"
+    "<html>\n"
+    "<head><title>My C Server</title></head>\n"
+    "<body>\n"
+    "    <h1>Hello from C!</h1>\n"
+    "    <p>This page was served via a socket.</p>\n"
+    "</body>\n"
+    "</html>\n";
+
+    res->body = strdup(response);
+    res->length = strlen(res->body);
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -33,14 +59,8 @@ int main(int argc, char* argv[]) {
 
     HttpServer* server = http_server_create(60223);
 
-    http_server_map_endpoint(server, "/print-add", print_function_handler);
-    http_server_map_endpoint(server, "/subtract", test_func_handler2);
-    http_server_map_endpoint(server, "/", test_func_handler);
+    http_server_map_endpoint(server, "/", index_handler);
     http_server_print_endpoints(server);
-
-    printf("[Server] Running \"/print-add\"...\n");
-    func_handler_t func1 = http_server_get_function_handler(server, "/");
-    printf("[Server] Result: [%d]\n", func1(10, 20));
 
     http_server_run(server);
 

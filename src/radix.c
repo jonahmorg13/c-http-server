@@ -1,24 +1,25 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 
 #include "radix.h"
 #include "utils.h"
 
-int test_func_handler(int a, int b) {
-    return a + b;
+int test_func_handler(HttpRequest* a, HttpResponse* b) {
+    return (int)(intptr_t)a + (int)(intptr_t)b;
 }
 
-int test_func_handler2(int a, int b) {
-    return a - b;
+int test_func_handler2(HttpRequest* a, HttpResponse* b) {
+    return (int)(intptr_t)a - (int)(intptr_t)b;
 }
 
-int test_func_handler3(int a, int b) {
-    return a * b;
+int test_func_handler3(HttpRequest* a, HttpResponse* b) {
+    return (int)(intptr_t)a * (int)(intptr_t)b;
 }
 
-int test_func_handler4(int a, int b) {
-    return a / b;
+int test_func_handler4(HttpRequest* a, HttpResponse* b) {
+    return (int)(intptr_t)a / (int)(intptr_t)b;
 }
 
 RadixTree* radix_tree_create(void) {
@@ -107,6 +108,7 @@ RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
     size_t search_key_len = strlen(search_key);
 
     while(curr_node != NULL && !radix_node_is_leaf(curr_node) && curr_search_key_idx < search_key_len) {
+        bool found_edge = false;
         RadixEdgeVector* edges_to_search = curr_node->edges;
         size_t edge_vector_size = radix_edge_vector_size(edges_to_search);
 
@@ -116,9 +118,11 @@ RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
             if(is_prefix(curr_key, &search_key[curr_search_key_idx])) {
                 curr_node = curr_edge->node;
                 curr_search_key_idx += strlen(curr_key);
+                found_edge = true;
                 break;
             }
         }
+        if(!found_edge) return NULL;
     }
 
     if(curr_node != NULL && curr_search_key_idx == search_key_len)
@@ -303,10 +307,10 @@ void radix_tree_tests() {
     RadixNode* waterNode = radix_tree_get_node(tree, "/water");
 
     assert(node != NULL);
-    assert(node->func_handler(1,1) == 2);
+    assert(node->func_handler((HttpRequest*)1, (HttpResponse*)1) == 2);
 
     assert(waterNode != NULL);
-    assert(waterNode->func_handler(1,1) == 0);
+    assert(waterNode->func_handler((HttpRequest*)1, (HttpResponse*)1) == 0);
 
     radix_tree_free(tree);
 }
