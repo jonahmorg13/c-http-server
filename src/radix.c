@@ -2,8 +2,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include "../include/radix.h"
-#include "../include/utils.h"
+#include "radix.h"
+#include "utils.h"
 
 int test_func_handler(int a, int b) {
     return a + b;

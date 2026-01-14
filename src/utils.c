@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "../include/utils.h"
+#include "utils.h"
 
 bool is_prefix(char* left, char* right) {
     size_t left_len = strlen(left);

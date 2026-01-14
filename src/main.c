@@ -1,9 +1,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "../include/radix.h"
-#include "../include/utils.h"
-#include "../include/server.h"
+#include "radix.h"
+#include "utils.h"
+#include "server.h"
 
 void run_tests() {
     run_prefix_tests();
