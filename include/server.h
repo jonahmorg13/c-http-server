@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#define STATIC_FILE_DIR "public"
+#define STATIC_FILE_DIR "todo-app"
  
 // SECTION
 // Structs
