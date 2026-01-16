@@ -240,24 +240,30 @@ void handle_connection(HttpServer* server, int sockfd)
     }
 
     //we've got to handle keep-alive somehow in the response writer
-    RadixTreeSearchResult* endpoint_search_result = (RadixTreeSearchResult*)http_server_endpoint_search(server, req->header->path);
+    // how do we create this string?
+    // use the method appended with the path.
+    size_t full_search_len = strlen(req->header->method) + strlen(req->header->path) + 1;
+    char* full_search_path = (char*)malloc(full_search_len);
 
-    // todo: do middleware and function running dispatching here
-    // if(res == NULL) {
-    //     printf("%s", "sending back error resposne\n");
-    //     res->body = strdup(not_found_response);
-    //     res->length = strlen(res->body);
-    //     if(send(sockfd, res->body, res->length, 0) == -1) {
-    //         fprintf(stderr, "Error sending our resposne\n");
-    //     }
-    // }
-    // else {
-    //     printf("%s", "running our function handler\n");
-    //     func_handler(req, res);
-    //     if(send(sockfd, res->body, res->length, 0) == -1) {
-    //         fprintf(stderr, "Error sending our response\n");
-    //     }
-    // }
+    snprintf(full_search_path, full_search_len, "%s%s", req->header->method, req->header->path);
+
+    RadixTreeSearchResult* endpoint_search_result = (RadixTreeSearchResult*)http_server_endpoint_search(server, full_search_path);
+    free(full_search_path);
+
+    if(endpoint_search_result == NULL) {
+        printf("%s", "sending back error resposne\n");
+        res->body = strdup(not_found_response);
+        res->length = strlen(res->body);
+        if(send(sockfd, res->body, res->length, 0) == -1) {
+            fprintf(stderr, "Error sending our resposne\n");
+        }
+    }
+    else {
+        run_middleware_and_func_handler(req, res, endpoint_search_result->group->middleware, endpoint_search_result->func);
+        if(send(sockfd, res->body, res->length, 0) == -1) {
+            fprintf(stderr, "Error sending our response\n");
+        }
+    }
 
     http_request_delete(req);
     http_response_delete(res);
@@ -457,4 +463,26 @@ radix_tree_element_t* http_server_endpoint_search(HttpServer* server, char* path
 
 void route_group_use(RouteGroup* group, middleware_func_t func) {
     middleware_functions_vec_push(group->middleware, func);
+}
+
+void dispatch_handler(RequestHandlingContext* ctx, void* next) {
+    if(ctx->curr_mw_idx < ctx->middleware_size) {
+        middleware_func_t curr_middleware_func = ctx->middleware->funcs[ctx->curr_mw_idx++];
+        curr_middleware_func(ctx, dispatch_handler);
+    }
+    else {
+        ctx->func_handler(ctx->req, ctx->res);
+    }
+}
+
+void run_middleware_and_func_handler(HttpRequest* req, HttpResponse* res, MiddlewareFunctionsVec* middleware, func_handler_t func) {
+    RequestHandlingContext ctx = {
+        .req = req,
+        .res = res,
+        .curr_mw_idx = 0,
+        .middleware_size = middleware->size,
+        .middleware = middleware,
+        .func_handler = func
+    };
+    dispatch_handler(&ctx, NULL);
 }

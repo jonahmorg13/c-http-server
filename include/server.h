@@ -11,8 +11,9 @@
 //
 // MIDDLEWARE
 //
-// todo: finish the typedef for this
-typedef void(*middleware_func_t)(int ctx, void* next);
+typedef struct RequestHandlingContext RequestHandlingContext;
+
+typedef void(*middleware_func_t)(RequestHandlingContext* ctx, void* next);
 
 typedef struct MiddlewareFunctionsVec {
     middleware_func_t* funcs;
@@ -20,6 +21,14 @@ typedef struct MiddlewareFunctionsVec {
     int cap;
 } MiddlewareFunctionsVec;
 
+struct RequestHandlingContext {
+    HttpRequest* req;
+    HttpResponse* res;
+    int curr_mw_idx;
+    int middleware_size;
+    MiddlewareFunctionsVec* middleware;
+    func_handler_t func_handler;
+};
 //
 // Server 
 //
@@ -83,6 +92,8 @@ void http_request_delete(HttpRequest* req);
 
 HttpResponse* http_response_create(void);
 void http_response_delete(HttpResponse* res);
+
+void run_middleware_and_func_handler(HttpRequest* req, HttpResponse* res, MiddlewareFunctionsVec* middleware, func_handler_t func);
 
 //
 // middleware

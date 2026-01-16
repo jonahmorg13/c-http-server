@@ -62,10 +62,10 @@ int login_handler(HttpRequest* req, HttpResponse* res) {
 
 // }
 
-void auth_middleware(int ctx, void(*next)()) {
-    printf("[MIDDLEWARE - Auth]: Start");
-    next();
-    printf("[MIDDLEWARE - Auth]: End");
+void auth_middleware(RequestHandlingContext* ctx, void(*next)()) {
+    printf("[MIDDLEWARE - Auth]: Start\n");
+    next(ctx);
+    printf("[MIDDLEWARE - Auth]: End\n");
 }
 
 int main(int argc, char* argv[]) {
