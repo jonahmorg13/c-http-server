@@ -10,14 +10,12 @@
 #include "middleware.h"
 #include "handlers.h"
 
-
 void run_tests() {
     run_prefix_tests();
     run_common_prefix_tests();
     run_radix_edge_vector_tests();
 }
 
-//todo add logs for each request coming in
 int main(int argc, char* argv[]) {
     run_tests();
     signal(SIGPIPE, SIG_IGN);
