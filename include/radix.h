@@ -13,7 +13,7 @@ typedef struct RadixNode RadixNode;
 typedef struct RadixEdgeVector RadixEdgeVector ;
 typedef struct RadixTree RadixTree;
 
-typedef int(*func_handler_t)(HttpRequest* req, HttpResponse* res);
+typedef void(*func_handler_t)(HttpRequest* req, HttpResponse* res);
 
 typedef struct RadixTreeSearchResult {
     func_handler_t func;

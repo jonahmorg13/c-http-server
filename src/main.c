@@ -15,32 +15,43 @@ void run_tests() {
     run_radix_edge_vector_tests();
 }
 
-int index_handler(HttpRequest* req, HttpResponse* res) {
-    printf("we have hit our index function handler!\n");
-
+void students_handler(HttpRequest* req, HttpResponse* res) {
     char *response = 
     "HTTP/1.1 200 OK\r\n"
     "Server: jonahsServer/1.0\r\n"
     "Content-Type: text/html; charset=UTF-8\r\n"
-    "Content-Length: 163\r\n"
+    "Content-Length: 177\r\n"
     "Connection: close\r\n"
     "\r\n"
     "<!DOCTYPE html>\n"
     "<html>\n"
     "<head><title>My C Server</title></head>\n"
     "<body>\n"
-    "    <h1>Hello Pimps & Scholars</h1>\n"
-    "    <p>You thought I was feeling you?</p>"
+    "    <h1>Student 1</h1>\n"
+    "    <p>Name: Jonah</p>\n"
+    "    <h1>Student 2</h1>\n"
+    "    <p>Name: Jada</p>\n"
     "</body>\n"
     "</html>\n";
 
     res->body = strdup(response);
     res->length = strlen(res->body);
-    return 0;
 }
 
-int login_handler(HttpRequest* req, HttpResponse* res) {
-    return index_handler(req, res);
+void login_handler(HttpRequest* req, HttpResponse* res) {
+    printf("we have hit our login function handler!\n");
+
+    char *response = 
+    "HTTP/1.1 200 OK\r\n"
+    "Server: jonahsServer/1.0\r\n"
+    "Content-Type: text/plain; charset=UTF-8\r\n"
+    "Content-Length: 28\r\n"
+    "Connection: close\r\n"
+    "\r\n"
+    "Password is SECRET_PASSWORD\n";
+
+    res->body = strdup(response);
+    res->length = strlen(res->body);
 }
 
 //todo: fix memory leaks
@@ -54,15 +65,12 @@ int main(int argc, char* argv[]) {
     route_group_use(g1, logging_middleware);
     route_group_use(g1, auth_middleware);
     {
-        route_group_map_endpoint(g1, "GET", "/login", login_handler);
-        route_group_map_endpoint(g1, "GET", "/submit", login_handler);
-        route_group_map_endpoint(g1, "GET", "/students", login_handler);
-        route_group_map_endpoint(g1, "GET", "/sterling_silver", login_handler);
+        route_group_map_endpoint(g1, "GET", "/students", students_handler);
+    }
 
-        route_group_map_endpoint(g1, "POST", "/login", login_handler);
-        route_group_map_endpoint(g1, "POST", "/test", login_handler);
-        route_group_map_endpoint(g1, "POST", "/test123", login_handler);
-        route_group_map_endpoint(g1, "POST", "/test1234", login_handler);
+    RouteGroup* g2 = http_server_create_group(server, "/api");
+    {
+        route_group_map_endpoint(g2, "POST", "/login", login_handler);
     }
 
     http_server_print_endpoints(server);
