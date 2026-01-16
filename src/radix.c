@@ -271,51 +271,6 @@ void radix_node_free(RadixNode* node) {
 ////////////
 // TESTS
 ////////////
-int test_func_handler(HttpRequest* a, HttpResponse* b) {
-    return (int)a + (int)b;
-}
-int test_func_handler2(HttpRequest* a, HttpResponse* b) {
-    return (int)a + (int)b;
-}
-int test_func_handler3(HttpRequest* a, HttpResponse* b) {
-    return (int)a + (int)b;
-}
-int test_func_handler4(HttpRequest* a, HttpResponse* b) {
-    return (int)a + (int)b;
-}
-
-void radix_tree_tests() {
-    RadixTree* tree = radix_tree_create();
-
-    radix_tree_element_t element = {test_func_handler, NULL};
-    radix_tree_element_t elementTwo = {test_func_handler2, NULL};
-    radix_tree_insert(tree, "/slower", &element); 
-    radix_tree_insert(tree, "/slot", &element);
-    radix_tree_insert(tree, "/team", &element);
-    radix_tree_insert(tree, "/te", &element);
-    radix_tree_insert(tree, "/tester", &element);
-    radix_tree_insert(tree, "/water", &elementTwo);
-    radix_tree_insert(tree, "/wat", &element); 
-    radix_tree_insert(tree, "/waste", &element);
-    radix_tree_insert(tree, "/api", &element);
-    radix_tree_insert(tree, "/slow", &element);
-    //radix_tree_print(tree);
-    assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
-    RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
-
-    RadixNode* node = radix_tree_get_node(tree, "/slot");
-    RadixNode* waterNode = radix_tree_get_node(tree, "/water");
-
-    assert(node != NULL);
-    assert(node->element->func((HttpRequest*)1, (HttpResponse*)1) == 2);
-
-    assert(waterNode != NULL);
-    assert(waterNode->element->func((HttpRequest*)1, (HttpResponse*)1) == 0);
-
-    radix_tree_free(tree);
-}
-
-
 void run_radix_edge_vector_tests() {
     test_vector_growth_and_capacity();
     test_vector_removal_boundaries();

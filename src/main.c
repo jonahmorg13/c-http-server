@@ -12,21 +12,6 @@ void run_tests() {
     run_prefix_tests();
     run_common_prefix_tests();
     run_radix_edge_vector_tests();
-    //radix_tree_tests();
-}
-
-void show_sizes() {
-    printf("sizeof [RadixTree]: %lu\n", sizeof(RadixTree));
-    printf("sizeof [RadixNode]: %lu\n", sizeof(RadixNode));
-    printf("sizeof [func_handler_t]: %lu\n", sizeof(func_handler_t));
-    printf("sizeof [RadixEdgeVector]: %lu\n", sizeof(RadixEdgeVector));
-    printf("sizeof [size_t]: %lu\n", sizeof(size_t));
-    printf("sizeof [RadixEdge]: %lu\n", sizeof(RadixEdge));
-}
-
-int print_function_handler(HttpRequest* a, HttpResponse* b) {
-    printf("[Server] Printing [%d] and [%d]\n", (int)(intptr_t)a, (int)(intptr_t)b);
-    return (int)(intptr_t)a + (int)(intptr_t)b;
 }
 
 int index_handler(HttpRequest* req, HttpResponse* res) {
@@ -36,7 +21,7 @@ int index_handler(HttpRequest* req, HttpResponse* res) {
     "HTTP/1.1 200 OK\r\n"
     "Server: jonahsServer/1.0\r\n"
     "Content-Type: text/html; charset=UTF-8\r\n"
-    "Content-Length: 159\r\n"
+    "Content-Length: 163\r\n"
     "Connection: close\r\n"
     "\r\n"
     "<!DOCTYPE html>\n"
@@ -54,43 +39,60 @@ int index_handler(HttpRequest* req, HttpResponse* res) {
 }
 
 int login_handler(HttpRequest* req, HttpResponse* res) {
-    index_handler(req, res);
+    return index_handler(req, res);
 }
 
-
-// void submit_handler(request_ctx_t* ctx) {
-
-// }
-
-void auth_middleware(RequestHandlingContext* ctx, void(*next)()) {
+void auth_middleware(RequestHandlingContext* ctx, void* next_arg) {
+    middleware_func_t next = (middleware_func_t)next_arg;
     printf("[MIDDLEWARE - Auth]: Start\n");
-    next(ctx);
+
+    char* invalid = 
+    "HTTP/1.1 401 Unauthorized\r\n"
+    "Content-Type: text/plain\r\n"
+    "Content-Length: 25\r\n"
+    "\r\n"
+    "Error: access is denied.\n";
+
+    if(strcmp(ctx->req->header->authorization, "SECRET_PASSWORD") != 0) {
+        ctx->res->body = strdup(invalid);
+        ctx->res->length = strlen(invalid);
+        return;
+    }
+
+    if (next) next(ctx, NULL);
     printf("[MIDDLEWARE - Auth]: End\n");
 }
 
-int main(int argc, char* argv[]) {
-    signal(SIGPIPE, SIG_IGN);
+void logging_middleware(RequestHandlingContext* ctx, void* next_arg) {
+    middleware_func_t next = (middleware_func_t)next_arg;
+    printf("[MIDDLEWARE - Logging]: Start\n");
+    printf("Authorization: %s\n", ctx->req->header->authorization);
+    if (next) next(ctx, NULL);
+    printf("[MIDDLEWARE - Logging]: End\n");
+}
 
-    // ALWAYS run the test before running the server!!!!
+//todo: fix memory leaks
+int main(int argc, char* argv[]) {
     run_tests();
-    show_sizes();
+    signal(SIGPIPE, SIG_IGN);
 
     HttpServer* server = http_server_create(60223);
 
     RouteGroup* g1 = http_server_create_group(server, "/api");
+    route_group_use(g1, logging_middleware);
     route_group_use(g1, auth_middleware);
     {
         route_group_map_endpoint(g1, "GET", "/login", login_handler);
         route_group_map_endpoint(g1, "GET", "/submit", login_handler);
         route_group_map_endpoint(g1, "GET", "/students", login_handler);
         route_group_map_endpoint(g1, "GET", "/sterling_silver", login_handler);
-    }
-    {
+
         route_group_map_endpoint(g1, "POST", "/login", login_handler);
         route_group_map_endpoint(g1, "POST", "/test", login_handler);
         route_group_map_endpoint(g1, "POST", "/test123", login_handler);
         route_group_map_endpoint(g1, "POST", "/test1234", login_handler);
     }
+
     http_server_print_endpoints(server);
     http_server_run(server);
     http_server_delete(server);

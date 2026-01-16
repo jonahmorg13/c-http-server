@@ -81,70 +81,6 @@ void http_server_run(HttpServer* server) {
     }
 }
 
-// void http_server_map_endpoint(HttpServer* server, char* endpoint, func_handler_t func_handler) {
-//     radix_tree_insert(server->tree, endpoint, func_handler);
-// }
-
-// int static_file_func_handler(HttpRequest* req, HttpResponse* res) {
-//     char file_path[512]; 
-
-//     // very good function!
-//     // be careful with strdup so we dont have memory leaks!
-//     snprintf(file_path, sizeof(file_path), "./public%s", req->header->path);
-
-//     FILE* file = fopen(file_path, "rb");
-//     if(file == NULL) {
-//         res->body = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-//         res->length = strlen(res->body);
-//         return -1;
-//     }
-
-//     // how do all of these functions work?
-//     fseek(file, 0, SEEK_END);
-//     long file_size = ftell(file);
-//     rewind(file);
-
-//     char header[256];
-//     int header_len = snprintf(header, sizeof(header),
-//         "HTTP/1.1 200 OK\r\n"
-//         "Server: jonahsServer/1.0\r\n"
-//         "Content-Type: text/html\r\n" //todo: make this based on the file extension
-//         "Content-Length: %ld\r\n"
-//         "Cache-Control: max-age=60\r\n"
-//         "Connection: close\r\n"
-//         "\r\n", file_size);
-
-//     res->length = header_len + file_size;
-//     res->body = malloc(res->length + 1); 
-
-//     memcpy(res->body, header, header_len);
-//     fread(res->body + header_len, 1, file_size, file);
-    
-//     res->body[res->length] = '\0';
-
-//     fclose(file);
-//     return 0;
-// }
-
-// void http_server_map_static_files_in_dir(HttpServer* server, char* dir, char* prefix_endpoint) {
-//     DIR* dr = opendir(dir);
-//     if(dr == NULL) {
-//         perror("Could not open directory");
-//     }
-
-//     struct dirent *en;
-
-//     while((en = readdir(dr)) != NULL) {
-//         if(en->d_name[0] == '.') continue;
-//         char* full_endpoint_name = strcat(strdup(prefix_endpoint), strdup(en->d_name));
-
-//         printf("%s\n", full_endpoint_name);
-//         http_server_map_endpoint(server, full_endpoint_name, static_file_func_handler);
-//     }
-//     closedir(dr);
-// }
-
-
 void http_server_print_endpoints(HttpServer* server) {
     radix_tree_print(server->tree);
 }
@@ -173,6 +109,7 @@ void handle_connection(HttpServer* server, int sockfd)
     HttpRequest* req = http_request_create(); 
     HttpResponse* res = http_response_create();
 
+    // read the header from the socket
     int recv_length = recv(sockfd, buffer, buffer_size, 0);
     int search_idx = 0;
     char search[] = {'\r', '\n', '\r', '\n'};
@@ -201,18 +138,11 @@ void handle_connection(HttpServer* server, int sockfd)
         recv_length = recv(sockfd, buffer, buffer_size, 0);
     }
 
-    // printf("HEADER: %s\n", header_buf);
-    // printf("END HEADER\n");
-
     parse_http_header(req->header, header_buf, strlen(header_buf));
-    printf("Method: %s\n", req->header->method);
-    printf("Path: %s\n", req->header->path);
-    printf("Version: %s\n", req->header->version);
-    printf("Connection: %s\n", req->header->connection);
 
+    // read the body from the socket
     size_t amount_to_read_left = req->header->content_length;
     req->data = (uint8_t*)malloc(sizeof(uint8_t) * amount_to_read_left);
-
     if(amount_to_read_left > 0) {
         // ok now that we're parsing the http header, lets read it's body
         int body_offset = 0;
@@ -239,9 +169,6 @@ void handle_connection(HttpServer* server, int sockfd)
         printf("End Body");
     }
 
-    //we've got to handle keep-alive somehow in the response writer
-    // how do we create this string?
-    // use the method appended with the path.
     size_t full_search_len = strlen(req->header->method) + strlen(req->header->path) + 1;
     char* full_search_path = (char*)malloc(full_search_len);
 
@@ -285,26 +212,32 @@ void parse_http_header(HttpHeader* header, char* buffer, size_t length) {
     else 
         header->content_length = atoi(content_length+15);
 
-        
+    char* authorization = strstr(buffer, "Authorization:");
+    if(authorization != NULL) {
+        authorization += 15;
+        char* end = strstr(authorization, "\r\n");
+        if(end != NULL) {
+            size_t length = end - authorization;
+            header->authorization = malloc(length + 1);
+            memcpy(header->authorization, authorization, length);
+            header->authorization[length] = '\0';
+        }
+    }
+    else
+        header->authorization = strdup("");
+
     char* connection = strstr(buffer, "Connection:");
     if(connection == NULL) {
         header->connection = strdup("close");
     }
     else {
         connection = connection + 12;
-        if(strncasecmp(connection, "keep-alive", 10) == 0) {
+        if(strncasecmp(connection, "keep-alive", 10) == 0)
             header->connection = strdup("keep-alive");
-        }
-        else {
+        else
             header->connection = strdup("close");
-        }
     }
 
-    return;
-}
-
-
-void parse_http_data(uint8_t* data, char* buffer, size_t length) {
     return;
 }
 

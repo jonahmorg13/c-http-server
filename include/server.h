@@ -53,6 +53,7 @@ typedef struct HttpHeader {
     char* host;
     char* content_type;
     char* accept;
+    char* authorization;
     char* connection;
     size_t content_length;
 } HttpHeader;
@@ -83,9 +84,7 @@ void http_server_delete(HttpServer* server);
 // connection
 //
 void handle_connection(HttpServer* server, int sockfd);
-
 void parse_http_header(HttpHeader* header, char* buffer, size_t length);
-void parse_http_data(uint8_t* data, char* buffer, size_t length);
 
 HttpRequest* http_request_create(void);
 void http_request_delete(HttpRequest* req);
