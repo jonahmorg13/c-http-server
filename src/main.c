@@ -10,6 +10,8 @@
 #include "middleware.h"
 #include "handlers.h"
 
+#define SERVER_PORT 60223
+
 void run_tests() {
     run_prefix_tests();
     run_common_prefix_tests();
@@ -20,22 +22,30 @@ int main(int argc, char* argv[]) {
     run_tests();
     signal(SIGPIPE, SIG_IGN);
 
-    HttpServer* server = http_server_create(60223);
+    // creates the server
+    HttpServer* server = http_server_create(SERVER_PORT);
 
     http_server_use_static_files(server);
-
     RouteGroup* g1 = http_server_create_group(server, "/api");
-    route_group_use(g1, logging_middleware);
-    route_group_use(g1, auth_middleware);
-    route_group_map_endpoint(g1, "GET", "/students", students_handler);
+    {
+        // add middleware
+        route_group_use(g1, logging_middleware);
+        route_group_use(g1, auth_middleware);
 
+        // add the endpoint
+        route_group_map_endpoint(g1, "GET", "/students", students_handler);
+    }
     RouteGroup* g2 = http_server_create_group(server, "/api");
-    route_group_map_endpoint(g2, "POST", "/login", login_handler);
-
+    {
+        // add the endpoint to the group "g2"
+        route_group_map_endpoint(g2, "POST", "/login", login_handler);
+    }
     http_server_print_endpoints(server);
-    http_server_run(server);
-    http_server_delete(server);
 
+    // where the magic happens...
+    http_server_run(server);
+
+    http_server_delete(server);
     route_group_free(g1);
     route_group_free(g2);
 
