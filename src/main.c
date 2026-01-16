@@ -74,6 +74,8 @@ void  http_server_use_static_files(HttpServer* server) {
         fprintf(stderr, "Could not open directory: %s", STATIC_FILE_DIR);
         exit(-1);
     }
+
+    free(d);
 }
 
 //todo: fix memory leaks
@@ -96,5 +98,9 @@ int main(int argc, char* argv[]) {
     http_server_print_endpoints(server);
     http_server_run(server);
     http_server_delete(server);
+
+    route_group_free(g1);
+    route_group_free(g2);
+
     return EXIT_SUCCESS;
 }
