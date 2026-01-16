@@ -6,22 +6,6 @@
 #include "radix.h"
 #include "utils.h"
 
-int test_func_handler(HttpRequest* a, HttpResponse* b) {
-    return (int)(intptr_t)a + (int)(intptr_t)b;
-}
-
-int test_func_handler2(HttpRequest* a, HttpResponse* b) {
-    return (int)(intptr_t)a - (int)(intptr_t)b;
-}
-
-int test_func_handler3(HttpRequest* a, HttpResponse* b) {
-    return (int)(intptr_t)a * (int)(intptr_t)b;
-}
-
-int test_func_handler4(HttpRequest* a, HttpResponse* b) {
-    return (int)(intptr_t)a / (int)(intptr_t)b;
-}
-
 RadixTree* radix_tree_create(void) {
     RadixTree* tree = (RadixTree*)malloc(sizeof(RadixTree));
     if(tree == NULL) {
@@ -33,7 +17,7 @@ RadixTree* radix_tree_create(void) {
     return tree;
 }
 
-void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handler) {
+void radix_tree_insert(RadixTree* tree, char* new_key, radix_tree_element_t* element) {
     unsigned int new_key_idx = 0;
     RadixNode* curr_node = tree->root;
     assert(tree->root != NULL);
@@ -62,7 +46,7 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
                 char* suffix = strdup(&curr_key[common_prefix_amount]);
                 
                 int new_key_ended_here = (new_key_idx + common_prefix_amount == new_key_len);
-                RadixNode* split_node = radix_node_create(new_key_ended_here ? func_handler : NULL);
+                RadixNode* split_node = radix_node_create(new_key_ended_here ? element : NULL);
 
                 RadixEdge new_edge = radix_edge_create(prefix, split_node);
 
@@ -77,7 +61,7 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
                 if (!new_key_ended_here) {
                     char* divergence_key = strdup(&new_key[new_key_idx + common_prefix_amount]);
                     radix_edge_vector_push(split_node->edges, 
-                        radix_edge_create(divergence_key, radix_node_create(func_handler)));
+                        radix_edge_create(divergence_key, radix_node_create(element)));
                 } 
 
                 free(curr_edge->key);
@@ -89,17 +73,17 @@ void radix_tree_insert(RadixTree* tree, char* new_key, func_handler_t func_handl
         if(match_found == false) break;
     }
 
-    if(new_key_idx == new_key_len && curr_node->func_handler == NULL) {
-        curr_node->func_handler = func_handler;
+    if(new_key_idx == new_key_len && curr_node->element == NULL) {
+        curr_node->element = element;
         return;
     }
-    else if (new_key_idx == new_key_len && curr_node->func_handler != NULL) {
+    else if (new_key_idx == new_key_len && curr_node->element != NULL) {
         fprintf(stderr, "'radix_tree_insert': node already exists");
         return;
     }
 
     char* new_edge_key = strdup(&new_key[new_key_idx]);
-    radix_edge_vector_push(curr_node->edges, radix_edge_create(new_edge_key, radix_node_create(func_handler)));
+    radix_edge_vector_push(curr_node->edges, radix_edge_create(new_edge_key, radix_node_create(element)));
 }
 
 RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key) {
@@ -150,7 +134,7 @@ void radix_print_recursive(RadixNode* node, int depth) {
 
         // 3. Check if the node this edge points to is a valid key end
         // (Assuming a non-NULL handler means a key ends here)
-        if (edge->node->func_handler != NULL) {
+        if (edge->node->element != NULL) {
             printf("  [KEY]"); 
         }
         
@@ -170,7 +154,7 @@ void radix_tree_print(RadixTree* tree) {
 
     printf("ROOT");
     // Check if the root itself handles an empty string key (rare but possible)
-    if (tree->root->func_handler != NULL) {
+    if (tree->root->element != NULL) {
         printf(" [KEY]");
     }
     printf("\n");
@@ -183,9 +167,9 @@ void radix_tree_free(RadixTree* tree) {
     free(tree);
 }
 
-RadixNode* radix_node_create(func_handler_t func_handler) {
+RadixNode* radix_node_create(radix_tree_element_t* element) {
     RadixNode* node = (RadixNode*)malloc(sizeof(RadixNode));
-    node->func_handler = func_handler;
+    node->element= element;
     if(node == NULL) {
         fprintf(stderr, "Error allocating the radix node");
         exit(-1);
@@ -287,18 +271,34 @@ void radix_node_free(RadixNode* node) {
 ////////////
 // TESTS
 ////////////
+int test_func_handler(HttpRequest* a, HttpResponse* b) {
+    return (int)a + (int)b;
+}
+int test_func_handler2(HttpRequest* a, HttpResponse* b) {
+    return (int)a + (int)b;
+}
+int test_func_handler3(HttpRequest* a, HttpResponse* b) {
+    return (int)a + (int)b;
+}
+int test_func_handler4(HttpRequest* a, HttpResponse* b) {
+    return (int)a + (int)b;
+}
+
 void radix_tree_tests() {
     RadixTree* tree = radix_tree_create();
-    radix_tree_insert(tree, "/slower", test_func_handler); 
-    radix_tree_insert(tree, "/slot", test_func_handler);
-    radix_tree_insert(tree, "/team", test_func_handler);
-    radix_tree_insert(tree, "/te", test_func_handler);
-    radix_tree_insert(tree, "/tester", test_func_handler);
-    radix_tree_insert(tree, "/water", test_func_handler2);
-    radix_tree_insert(tree, "/wat", test_func_handler); 
-    radix_tree_insert(tree, "/waste", test_func_handler);
-    radix_tree_insert(tree, "/api", test_func_handler);
-    radix_tree_insert(tree, "/slow", test_func_handler);
+
+    radix_tree_element_t element = {test_func_handler, NULL};
+    radix_tree_element_t elementTwo = {test_func_handler2, NULL};
+    radix_tree_insert(tree, "/slower", &element); 
+    radix_tree_insert(tree, "/slot", &element);
+    radix_tree_insert(tree, "/team", &element);
+    radix_tree_insert(tree, "/te", &element);
+    radix_tree_insert(tree, "/tester", &element);
+    radix_tree_insert(tree, "/water", &elementTwo);
+    radix_tree_insert(tree, "/wat", &element); 
+    radix_tree_insert(tree, "/waste", &element);
+    radix_tree_insert(tree, "/api", &element);
+    radix_tree_insert(tree, "/slow", &element);
     //radix_tree_print(tree);
     assert(strcmp(radix_edge_vector_at(tree->root->edges, 0)->key, "/") == 0);
     RadixNode* indexNode = radix_edge_vector_at(tree->root->edges, 0)->node;
@@ -307,10 +307,10 @@ void radix_tree_tests() {
     RadixNode* waterNode = radix_tree_get_node(tree, "/water");
 
     assert(node != NULL);
-    assert(node->func_handler((HttpRequest*)1, (HttpResponse*)1) == 2);
+    assert(node->element->func((HttpRequest*)1, (HttpResponse*)1) == 2);
 
     assert(waterNode != NULL);
-    assert(waterNode->func_handler((HttpRequest*)1, (HttpResponse*)1) == 0);
+    assert(waterNode->element->func((HttpRequest*)1, (HttpResponse*)1) == 0);
 
     radix_tree_free(tree);
 }

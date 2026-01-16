@@ -81,77 +81,69 @@ void http_server_run(HttpServer* server) {
     }
 }
 
-void http_server_map_endpoint(HttpServer* server, char* endpoint, func_handler_t func_handler) {
-    radix_tree_insert(server->tree, endpoint, func_handler);
-}
+// void http_server_map_endpoint(HttpServer* server, char* endpoint, func_handler_t func_handler) {
+//     radix_tree_insert(server->tree, endpoint, func_handler);
+// }
 
-int static_file_func_handler(HttpRequest* req, HttpResponse* res) {
-    char file_path[512]; 
+// int static_file_func_handler(HttpRequest* req, HttpResponse* res) {
+//     char file_path[512]; 
 
-    // very good function!
-    // be careful with strdup so we dont have memory leaks!
-    snprintf(file_path, sizeof(file_path), "./public%s", req->header->path);
+//     // very good function!
+//     // be careful with strdup so we dont have memory leaks!
+//     snprintf(file_path, sizeof(file_path), "./public%s", req->header->path);
 
-    FILE* file = fopen(file_path, "rb");
-    if(file == NULL) {
-        res->body = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-        res->length = strlen(res->body);
-        return -1;
-    }
+//     FILE* file = fopen(file_path, "rb");
+//     if(file == NULL) {
+//         res->body = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+//         res->length = strlen(res->body);
+//         return -1;
+//     }
 
-    // how do all of these functions work?
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    rewind(file);
+//     // how do all of these functions work?
+//     fseek(file, 0, SEEK_END);
+//     long file_size = ftell(file);
+//     rewind(file);
 
-    char header[256];
-    int header_len = snprintf(header, sizeof(header),
-        "HTTP/1.1 200 OK\r\n"
-        "Server: jonahsServer/1.0\r\n"
-        "Content-Type: text/html\r\n" //todo: make this based on the file extension
-        "Content-Length: %ld\r\n"
-        "Cache-Control: max-age=60\r\n"
-        "Connection: close\r\n"
-        "\r\n", file_size);
+//     char header[256];
+//     int header_len = snprintf(header, sizeof(header),
+//         "HTTP/1.1 200 OK\r\n"
+//         "Server: jonahsServer/1.0\r\n"
+//         "Content-Type: text/html\r\n" //todo: make this based on the file extension
+//         "Content-Length: %ld\r\n"
+//         "Cache-Control: max-age=60\r\n"
+//         "Connection: close\r\n"
+//         "\r\n", file_size);
 
-    res->length = header_len + file_size;
-    res->body = malloc(res->length + 1); 
+//     res->length = header_len + file_size;
+//     res->body = malloc(res->length + 1); 
 
-    memcpy(res->body, header, header_len);
-    fread(res->body + header_len, 1, file_size, file);
+//     memcpy(res->body, header, header_len);
+//     fread(res->body + header_len, 1, file_size, file);
     
-    res->body[res->length] = '\0';
+//     res->body[res->length] = '\0';
 
-    fclose(file);
-    return 0;
-}
+//     fclose(file);
+//     return 0;
+// }
 
-void http_server_map_static_files_in_dir(HttpServer* server, char* dir, char* prefix_endpoint) {
-    DIR* dr = opendir(dir);
-    if(dr == NULL) {
-        perror("Could not open directory");
-    }
+// void http_server_map_static_files_in_dir(HttpServer* server, char* dir, char* prefix_endpoint) {
+//     DIR* dr = opendir(dir);
+//     if(dr == NULL) {
+//         perror("Could not open directory");
+//     }
 
-    struct dirent *en;
+//     struct dirent *en;
 
-    while((en = readdir(dr)) != NULL) {
-        if(en->d_name[0] == '.') continue;
-        char* full_endpoint_name = strcat(strdup(prefix_endpoint), strdup(en->d_name));
+//     while((en = readdir(dr)) != NULL) {
+//         if(en->d_name[0] == '.') continue;
+//         char* full_endpoint_name = strcat(strdup(prefix_endpoint), strdup(en->d_name));
 
-        printf("%s\n", full_endpoint_name);
-        http_server_map_endpoint(server, full_endpoint_name, static_file_func_handler);
-    }
-    closedir(dr);
-}
+//         printf("%s\n", full_endpoint_name);
+//         http_server_map_endpoint(server, full_endpoint_name, static_file_func_handler);
+//     }
+//     closedir(dr);
+// }
 
-func_handler_t http_server_get_function_handler(HttpServer* server, char* endpoint) {
-    RadixNode* node = radix_tree_get_node(server->tree, endpoint);
-    if(node == NULL || node->func_handler == NULL) {
-        return NULL;
-    }
-
-    return node->func_handler; 
-}
 
 void http_server_print_endpoints(HttpServer* server) {
     radix_tree_print(server->tree);
@@ -212,7 +204,7 @@ void handle_connection(HttpServer* server, int sockfd)
     // printf("HEADER: %s\n", header_buf);
     // printf("END HEADER\n");
 
-    parse_http_header(req->header, header_buf, strlen);
+    parse_http_header(req->header, header_buf, strlen(header_buf));
     printf("Method: %s\n", req->header->method);
     printf("Path: %s\n", req->header->path);
     printf("Version: %s\n", req->header->version);
@@ -248,23 +240,24 @@ void handle_connection(HttpServer* server, int sockfd)
     }
 
     //we've got to handle keep-alive somehow in the response writer
-    func_handler_t func_handler = http_server_get_function_handler(server, req->header->path);
+    RadixTreeSearchResult* endpoint_search_result = (RadixTreeSearchResult*)http_server_endpoint_search(server, req->header->path);
 
-    if(func_handler == NULL) {
-        printf("%s", "sending back error resposne\n");
-        res->body = strdup(not_found_response);
-        res->length = strlen(res->body);
-        if(send(sockfd, res->body, res->length, 0) == -1) {
-            fprintf(stderr, "Error sending our resposne\n");
-        }
-    }
-    else {
-        printf("%s", "running our function handler\n");
-        func_handler(req, res);
-        if(send(sockfd, res->body, res->length, 0) == -1) {
-            fprintf(stderr, "Error sending our response\n");
-        }
-    }
+    // todo: do middleware and function running dispatching here
+    // if(res == NULL) {
+    //     printf("%s", "sending back error resposne\n");
+    //     res->body = strdup(not_found_response);
+    //     res->length = strlen(res->body);
+    //     if(send(sockfd, res->body, res->length, 0) == -1) {
+    //         fprintf(stderr, "Error sending our resposne\n");
+    //     }
+    // }
+    // else {
+    //     printf("%s", "running our function handler\n");
+    //     func_handler(req, res);
+    //     if(send(sockfd, res->body, res->length, 0) == -1) {
+    //         fprintf(stderr, "Error sending our response\n");
+    //     }
+    // }
 
     http_request_delete(req);
     http_response_delete(res);
@@ -340,11 +333,128 @@ HttpResponse* http_response_create(void) {
         fprintf(stderr, "Error mallocing http response");
         exit(EXIT_FAILURE);
     }
+    res->body = NULL;
+    res->length = 0;
     return res;
 }
 
 void http_response_delete(HttpResponse* res) {
-    free(res->body);
+    if(res->body != NULL) {
+        free(res->body);
+    }
     free(res);
 }
 
+MiddlewareFunctionsVec* create_middleware_functions_vec(void) {
+    MiddlewareFunctionsVec* vec = (MiddlewareFunctionsVec*)malloc(sizeof(MiddlewareFunctionsVec));
+    if(vec == NULL) {
+        perror("Error allocating memory");
+        exit(-1);
+    }
+    vec->funcs = NULL;
+    vec->cap = 0;
+    vec->size = 0;
+
+    return vec;
+}
+
+void middleware_functions_vec_push(MiddlewareFunctionsVec* vec, middleware_func_t func) {
+    if(vec->funcs == NULL) {
+        vec->cap = 4;
+        vec->funcs = (middleware_func_t*)malloc(sizeof(middleware_func_t) * vec->cap);
+        if(vec->funcs == NULL) {
+            perror("Error allocating memory");
+            exit(-1);
+        }
+    }
+    if(vec->size >= vec->cap) {
+        vec->cap *= 2;
+        vec->funcs = (middleware_func_t*)realloc(vec->funcs, sizeof(middleware_func_t) * vec->cap);
+        if(vec->funcs == NULL) {
+            perror("Error allocating memory");
+            exit(-1);
+        }
+    }
+    vec->funcs[vec->size++] = func;
+}
+
+RouteGroup* create_route_group(HttpServer* server, char* prefix) {
+    RouteGroup* group = (RouteGroup*)malloc(sizeof(RouteGroup));
+    if(group == NULL) {
+        perror("Error allocating route group");
+        exit(-1);
+    }
+
+
+    group->middleware = create_middleware_functions_vec();
+    group->server = server;
+    group->prefix = prefix;
+
+    return group;
+}
+
+void middleware_functions_free(MiddlewareFunctionsVec* vec) {
+    free(vec->funcs);
+}
+
+RouteGroup* http_server_create_group(HttpServer* server, char* prefix) {
+    RouteGroup* group = create_route_group(server, prefix);
+
+    //todo add the group to a ds that the server can  hold onto
+
+    return group;
+}
+
+void route_group_free(RouteGroup* group) {
+    middleware_functions_free(group->middleware);
+}
+
+void route_group_map_endpoint(RouteGroup* group, char* method, char* endpoint, func_handler_t func) {
+    const char* allowedMethods[] = {"GET", "POST", "DELETE", "PUT", "PATCH"};
+    int methodCount = sizeof(allowedMethods) / sizeof(allowedMethods[0]);
+    bool allowed = false;
+    for(int i = 0; i < methodCount; i++) {
+        if(strcmp(allowedMethods[i], method) == 0) {
+            allowed = true;
+            break;
+        }
+    }
+    if(!allowed) {
+        fprintf(stderr, "Not allowed to map %s\n", method);
+        exit(-1);
+    }
+
+    size_t total_len = strlen(method) + strlen(group->prefix) + strlen(endpoint) + 1;
+    char* full_path = malloc(total_len);
+    if (!full_path) {
+        perror("Failed to allocate path buffer");
+        return; 
+    }
+
+    RadixTreeSearchResult* result = (RadixTreeSearchResult*)malloc(sizeof(RadixTreeSearchResult));
+    if(result == NULL) {
+        perror("Error allocating search result");
+        exit(-1);
+    }
+    result->func = func;
+    result->group = group;
+
+    snprintf(full_path, total_len, "%s%s%s", method, group->prefix, endpoint);
+    radix_tree_insert(group->server->tree, full_path, result);
+
+    free(full_path);
+}
+
+
+radix_tree_element_t* http_server_endpoint_search(HttpServer* server, char* path) {
+    RadixNode* node = radix_tree_get_node(server->tree, path);
+    if(node == NULL || node->element == NULL) {
+        return NULL;
+    }
+
+    return node->element; 
+}
+
+void route_group_use(RouteGroup* group, middleware_func_t func) {
+    middleware_functions_vec_push(group->middleware, func);
+}

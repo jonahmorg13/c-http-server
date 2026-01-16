@@ -6,6 +6,7 @@
 
 typedef struct HttpRequest HttpRequest;
 typedef struct HttpResponse HttpResponse;
+typedef struct RouteGroup RouteGroup;
 
 typedef struct RadixEdge RadixEdge;
 typedef struct RadixNode RadixNode;
@@ -13,6 +14,13 @@ typedef struct RadixEdgeVector RadixEdgeVector ;
 typedef struct RadixTree RadixTree;
 
 typedef int(*func_handler_t)(HttpRequest* req, HttpResponse* res);
+
+typedef struct RadixTreeSearchResult {
+    func_handler_t func;
+    RouteGroup* group;
+} RadixTreeSearchResult;
+
+typedef RadixTreeSearchResult radix_tree_element_t;
 
 extern int test_func_handler(HttpRequest* a, HttpResponse* b);
 extern int test_func_handler2(HttpRequest* a, HttpResponse* b);
@@ -33,7 +41,7 @@ struct RadixTree {
 // create
 RadixTree* radix_tree_create(void);
 // insert
-void radix_tree_insert(RadixTree* tree, char* key, func_handler_t func_handler);
+void radix_tree_insert(RadixTree* tree, char* key, radix_tree_element_t* element);
 // get func handler
 RadixNode* radix_tree_get_node(RadixTree* tree, char* search_key);
 
@@ -49,14 +57,14 @@ void radix_tree_print(RadixTree* tree);
 ///////////////////////
 struct RadixNode {
     //function goes here
-    func_handler_t func_handler;
+    radix_tree_element_t* element;
     
     //vector of radixedges
     RadixEdgeVector* edges;
 };
 
 // create
-RadixNode* radix_node_create(func_handler_t func_handler);
+RadixNode* radix_node_create(radix_tree_element_t* element);
 // is leaf
 bool radix_node_is_leaf(RadixNode* node);
 // free
