@@ -4,7 +4,6 @@
 
 void auth_middleware(RequestHandlingContext* ctx, void* next_arg) {
     middleware_func_t next = (middleware_func_t)next_arg;
-    printf("[MIDDLEWARE - Auth]: Start\n");
 
     char* invalid = 
     "HTTP/1.1 401 Unauthorized\r\n"
@@ -20,7 +19,6 @@ void auth_middleware(RequestHandlingContext* ctx, void* next_arg) {
     }
 
     if (next) next(ctx, NULL);
-    printf("[MIDDLEWARE - Auth]: End\n");
 }
 
 void logging_middleware(RequestHandlingContext* ctx, void* next_arg) {

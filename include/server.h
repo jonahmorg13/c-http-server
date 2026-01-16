@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#define SERVER_PORT 60223
 #define STATIC_FILE_DIR "todo-app"
  
 // SECTION

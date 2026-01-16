@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <time.h>
 
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -67,6 +68,8 @@ void http_server_run(HttpServer* server) {
         exit(EXIT_FAILURE);
     }
 
+    printf("\nServer is listening on port: %d...\n", SERVER_PORT);
+
     struct sockaddr_in client_addr;
     socklen_t sin_size;
     int new_sockd;
@@ -94,6 +97,12 @@ void http_server_delete(HttpServer* server) {
 
 void handle_connection(HttpServer* server, int sockfd)
 {
+    time_t rawtime;
+    struct tm *timeinfo;
+    char time_buf[80];
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+
     // only wait for 500ms on this connection
     struct timeval tv;
     tv.tv_sec = 0;
@@ -177,10 +186,10 @@ void handle_connection(HttpServer* server, int sockfd)
     snprintf(full_search_path, full_search_len, "%s%s", req->header->method, req->header->path);
 
     RadixTreeSearchResult* endpoint_search_result = (RadixTreeSearchResult*)http_server_endpoint_search(server, full_search_path);
-    free(full_search_path);
 
+    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", timeinfo);
     if(endpoint_search_result == NULL) {
-        printf("%s", "sending back error resposne\n");
+        printf("[%s]: %s\n", time_buf, full_search_path);
         res->body = strdup(not_found_response);
         res->length = strlen(res->body);
         if(send(sockfd, res->body, res->length, 0) == -1) {
@@ -188,6 +197,7 @@ void handle_connection(HttpServer* server, int sockfd)
         }
     }
     else {
+        printf("[%s]: %s\n", time_buf, full_search_path);
         run_middleware_and_func_handler(req, res, endpoint_search_result->group->middleware, endpoint_search_result->func);
         if(send(sockfd, res->body, res->length, 0) == -1) {
             fprintf(stderr, "Error sending our response\n");
@@ -196,7 +206,7 @@ void handle_connection(HttpServer* server, int sockfd)
 
     http_request_delete(req);
     http_response_delete(res);
-
+    free(full_search_path);
     close(sockfd);
 }
 

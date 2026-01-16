@@ -135,7 +135,7 @@ void radix_print_recursive(RadixNode* node, int depth) {
         // 3. Check if the node this edge points to is a valid key end
         // (Assuming a non-NULL handler means a key ends here)
         if (edge->node->element != NULL) {
-            printf("  [KEY]"); 
+            printf("  [func_handler]"); 
         }
         
         printf("\n");
@@ -152,7 +152,9 @@ void radix_tree_print(RadixTree* tree) {
         return;
     }
 
-    printf("ROOT");
+    printf("==============================\n");
+    printf("==== Server Endpoint Tree ====\n");
+    printf("==============================");
     // Check if the root itself handles an empty string key (rare but possible)
     if (tree->root->element != NULL) {
         printf(" [KEY]");
@@ -278,7 +280,7 @@ void run_radix_edge_vector_tests() {
 }
 
 void test_vector_growth_and_capacity() {
-    printf("Running: test_vector_growth_and_capacity\n");
+    //    printf("Running: test_vector_growth_and_capacity\n");
     RadixNode* node = radix_node_create(NULL);
     
     // Test large number of insertions to trigger multiple reallocations
@@ -293,11 +295,11 @@ void test_vector_growth_and_capacity() {
     assert(strcmp(radix_edge_vector_at(node->edges, 999)->key, "key_999") == 0);
     
     radix_node_free(node);
-    printf("PASSED: test_vector_growth_and_capacity\n");
+    //printf("PASSED: test_vector_growth_and_capacity\n");
 }
 
 void test_vector_removal_boundaries() {
-    printf("Running: test_vector_removal_boundaries\n");
+    //printf("Running: test_vector_removal_boundaries\n");
     RadixNode* node = radix_node_create(NULL);
 
     assert(radix_edge_vector_is_empty(node->edges));
@@ -321,11 +323,11 @@ void test_vector_removal_boundaries() {
     assert(radix_edge_vector_size(node->edges) == 0);
 
     radix_node_free(node);
-    printf("PASSED: test_vector_removal_boundaries\n");
+    //printf("PASSED: test_vector_removal_boundaries\n");
 }
 
 void test_null_and_empty_keys() {
-    printf("Running: test_null_and_empty_keys\n");
+    //printf("Running: test_null_and_empty_keys\n");
     RadixNode* node = radix_node_create(NULL);
 
     char* heap_key = (char*)malloc(sizeof(char));
@@ -338,5 +340,5 @@ void test_null_and_empty_keys() {
     assert(!radix_edge_vector_is_empty(node->edges));
 
     radix_node_free(node);
-    printf("PASSED: test_null_and_empty_keys\n");
+    //printf("PASSED: test_null_and_empty_keys\n");
 }

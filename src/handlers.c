@@ -29,8 +29,6 @@ void students_handler(HttpRequest* req, HttpResponse* res) {
 }
 
 void login_handler(HttpRequest* req, HttpResponse* res) {
-    printf("we have hit our login function handler!\n");
-
     char *response = 
     "HTTP/1.1 200 OK\r\n"
     "Server: jonahsServer/1.0\r\n"
