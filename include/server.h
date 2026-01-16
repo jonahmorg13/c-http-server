@@ -77,8 +77,8 @@ typedef struct HttpResponse {
 HttpServer* http_server_create(uint16_t port);
 RouteGroup* http_server_create_group(HttpServer* server, char* prefix);
 void http_server_run(HttpServer* server);
-
 RadixTreeSearchResult* http_server_endpoint_search(HttpServer* server, char* path);
+void  http_server_use_static_files(HttpServer* server);
 void http_server_print_endpoints(HttpServer* server);
 void http_server_delete(HttpServer* server);
 
@@ -112,8 +112,3 @@ void route_group_free(RouteGroup* group);
 void route_group_map_endpoint(RouteGroup* group, char* method, char* endpoint, func_handler_t func);
 void route_group_use(RouteGroup* group, middleware_func_t func);
 void route_group_map_static_file(RouteGroup* group, char* filepath);
-
-//
-// function handlers
-//
-void static_file_handler(HttpRequest* req, HttpResponse* res);
