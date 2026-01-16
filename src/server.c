@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <sys/time.h>
 
@@ -418,4 +420,81 @@ void run_middleware_and_func_handler(HttpRequest* req, HttpResponse* res, Middle
         .func_handler = func
     };
     dispatch_handler(&ctx, NULL);
+}
+
+void route_group_map_static_file(RouteGroup* group, char* filepath) {
+    char* method = "GET";
+    size_t total_len = strlen(method) + strlen(group->prefix) + strlen(filepath) + 1;
+    char* full_path = malloc(total_len);
+    if (!full_path) {
+        perror("Failed to allocate path buffer");
+        return; 
+    }
+
+    RadixTreeSearchResult* result = (RadixTreeSearchResult*)malloc(sizeof(RadixTreeSearchResult));
+    if(result == NULL) {
+        perror("Error allocating search result");
+        exit(-1);
+    }
+    result->func = static_file_handler;
+    result->group = group;
+
+    snprintf(full_path, total_len, "%s%s%s", method, group->prefix, filepath);
+    radix_tree_insert(group->server->tree, full_path, result);
+
+    free(full_path);
+}
+
+
+void static_file_handler(HttpRequest* req, HttpResponse* res) {
+    size_t path_len = strlen(STATIC_FILE_DIR) + strlen(req->header->path) + 1;
+    char* full_path = (char*)malloc(path_len);
+    if(full_path == NULL) return;
+
+    snprintf(full_path, path_len, "%s%s", STATIC_FILE_DIR, req->header->path);
+
+    int fd = open(full_path, O_RDONLY);
+    if(fd == -1) {
+        res->body = strdup("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        res->length = strlen(res->body);
+        free(full_path);
+        return;
+    }
+
+    struct stat st;
+    fstat(fd, &st);
+    off_t file_size = st.st_size;
+
+    char* file_content = (char*)malloc(file_size + 1);
+    if(file_content == NULL) {
+        close(fd);
+        free(full_path);
+        return;
+    }
+
+    ssize_t bytes_read = read(fd, file_content, file_size);
+    if(bytes_read >= 0) {
+        file_content[bytes_read] = '\0';
+    }
+
+    size_t full_response_len = file_size + 256;
+    res->body = malloc(full_response_len);
+    
+    if(res->body != NULL) {
+        int written = snprintf(res->body, full_response_len,
+            "HTTP/1.1 200 OK\r\n"
+            "Server: jonahsServer/1.0\r\n"
+            "Content-Type: text/html; charset=UTF-8\r\n"
+            "Content-Length: %ld\r\n"  // Use %ld for off_t
+            "Connection: close\r\n"
+            "\r\n"
+            "%s",
+            file_size, file_content);
+        
+        res->length = written;
+    }
+
+    free(file_content);
+    free(full_path);
+    close(fd);
 }

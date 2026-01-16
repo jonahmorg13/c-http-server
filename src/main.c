@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "server.h"
 #include "middleware.h"
+#include <dirent.h>
 
 void run_tests() {
     run_prefix_tests();
@@ -54,6 +55,27 @@ void login_handler(HttpRequest* req, HttpResponse* res) {
     res->length = strlen(res->body);
 }
 
+void  http_server_use_static_files(HttpServer* server) {
+    RouteGroup* static_files_group = http_server_create_group(server, "/");
+
+    DIR *d;
+    struct dirent *dir;
+    d = opendir(STATIC_FILE_DIR);
+    if(d) {
+        while((dir = readdir(d)) != NULL) {
+            char* res = strstr(dir->d_name, ".");
+            if(strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
+                continue;
+
+            route_group_map_static_file(static_files_group, dir->d_name);
+        }
+    }
+    else {
+        fprintf(stderr, "Could not open directory: %s", STATIC_FILE_DIR);
+        exit(-1);
+    }
+}
+
 //todo: fix memory leaks
 int main(int argc, char* argv[]) {
     run_tests();
@@ -61,17 +83,15 @@ int main(int argc, char* argv[]) {
 
     HttpServer* server = http_server_create(60223);
 
+    http_server_use_static_files(server);
+
     RouteGroup* g1 = http_server_create_group(server, "/api");
     route_group_use(g1, logging_middleware);
     route_group_use(g1, auth_middleware);
-    {
-        route_group_map_endpoint(g1, "GET", "/students", students_handler);
-    }
+    route_group_map_endpoint(g1, "GET", "/students", students_handler);
 
     RouteGroup* g2 = http_server_create_group(server, "/api");
-    {
-        route_group_map_endpoint(g2, "POST", "/login", login_handler);
-    }
+    route_group_map_endpoint(g2, "POST", "/login", login_handler);
 
     http_server_print_endpoints(server);
     http_server_run(server);
