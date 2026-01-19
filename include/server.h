@@ -71,6 +71,10 @@ typedef struct HttpResponse {
     size_t length;
 } HttpResponse;
 
+typedef struct HandleConnectionArgs {
+    HttpServer* server_ptr;
+    int sockfd;
+} HandleConnectionArgs;
 
 //
 // server
@@ -86,7 +90,7 @@ void http_server_delete(HttpServer* server);
 //
 // connection
 //
-void handle_connection(HttpServer* server, int sockfd);
+void handle_connection(HandleConnectionArgs* args);
 void parse_http_header(HttpHeader* header, char* buffer, size_t length);
 
 HttpRequest* http_request_create(void);

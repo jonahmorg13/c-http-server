@@ -40,8 +40,6 @@ int main(int argc, char* argv[]) {
     http_server_run(server);
 
     http_server_delete(server);
-    route_group_free(g1);
-    route_group_free(g2);
 
     // i learned that some c devs know that "the exit will handle memory deallocations"
     return EXIT_SUCCESS;

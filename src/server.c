@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <dirent.h>
 #include <time.h>
+#include <pthread.h>
 
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -62,6 +63,7 @@ HttpServer* http_server_create(uint16_t port) {
     return server;
 }
 
+
 void http_server_run(HttpServer* server) {
     if(listen(server->sockfd, 1000) == -1) {
         fprintf(stderr, "Error listening on the server socket.");
@@ -82,7 +84,25 @@ void http_server_run(HttpServer* server) {
             exit(EXIT_FAILURE);
         }
 
-        handle_connection(server, new_sockd);
+        HandleConnectionArgs* args = (HandleConnectionArgs*)malloc(sizeof(HandleConnectionArgs));
+        if(args == NULL) {
+            perror("error allocating args on heap");
+            close(new_sockd);
+            continue;
+        }
+
+        args->server_ptr = server;
+        args->sockfd = new_sockd;
+
+        pthread_t new_thread;
+        if(pthread_create(&new_thread, NULL, (void*)handle_connection, (void*)args) != 0) {
+            perror("Failed to create thread.");
+            free(args);
+            close(new_sockd);
+        }
+        else {
+            pthread_detach(new_thread);
+        }
     }
 }
 
@@ -95,8 +115,11 @@ void http_server_delete(HttpServer* server) {
     free(server);
 }
 
-void handle_connection(HttpServer* server, int sockfd)
+void handle_connection(HandleConnectionArgs* args)
 {
+    HttpServer* server = args->server_ptr;
+    int sockfd = args->sockfd;
+
     time_t rawtime;
     struct tm *timeinfo;
     char time_buf[80];
@@ -108,12 +131,12 @@ void handle_connection(HttpServer* server, int sockfd)
     tv.tv_sec = 0;
     tv.tv_usec = 500000;
 
-    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
         perror("Error setting timeout");
-    }
 
-    size_t buffer_size = 16;
-    char buffer[buffer_size];
+    #define BUF_SIZE 4096
+    size_t buffer_size = BUF_SIZE;
+    char buffer[BUF_SIZE] = {0};
 
     char header_buf[4096];
 
@@ -206,8 +229,9 @@ void handle_connection(HttpServer* server, int sockfd)
 
     http_request_delete(req);
     http_response_delete(res);
-    free(full_search_path);
     close(sockfd);
+    free(full_search_path);
+    free(args);
 }
 
 void parse_http_header(HttpHeader* header, char* buffer, size_t length) {
