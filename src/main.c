@@ -20,9 +20,10 @@ int main(int argc, char* argv[]) {
     run_tests();
     signal(SIGPIPE, SIG_IGN);
 
-    // creates the server
     HttpServer* server = http_server_create(SERVER_PORT);
 
+    // todo: make it so you can use multiple static file directories
+    // todo: and make it recursive
     http_server_use_static_files(server);
     {
         RouteGroup* g1 = http_server_create_group(server, "/api");
